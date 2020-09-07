@@ -21,3 +21,5 @@ Icon*
 eject.sh
 *.cerr
 .gdbinit
+.prettierrc
+.vscode

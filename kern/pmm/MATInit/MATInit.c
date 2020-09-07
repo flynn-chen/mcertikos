@@ -1,9 +1,9 @@
 #include <lib/debug.h>
 #include "import.h"
 
-#define PAGESIZE     4096
-#define VM_USERLO    0x40000000
-#define VM_USERHI    0xF0000000
+#define PAGESIZE 4096
+#define VM_USERLO 0x40000000
+#define VM_USERHI 0xF0000000
 #define VM_USERLO_PI (VM_USERLO / PAGESIZE)
 #define VM_USERHI_PI (VM_USERHI / PAGESIZE)
 
@@ -41,15 +41,18 @@ void pmem_init(unsigned int mbi_addr)
      *       divided by the page size.
      */
     table_size = get_size();
-    if (table_size == 0) {
+    if (table_size == 0)
+    {
         nps = 0;
     }
-    
+
     //the last entry might not have the highest address
     highest_addr = 0;
-    for (unsigned int i = 0; i < table_size; i++) {
+    for (unsigned int i = 0; i < table_size; i++)
+    {
         entry_end_addr = get_mms(i) + get_mml(i) - 1;
-        if (entry_end_addr > highest_addr) {
+        if (entry_end_addr > highest_addr)
+        {
             highest_addr = entry_end_addr;
         }
     }
@@ -58,10 +61,10 @@ void pmem_init(unsigned int mbi_addr)
     /*
     TBD: This formula of calculating nps might not be right...
     */
-    
+
     nps = highest_addr / PAGESIZE;
 
-    set_nps(nps);  // Setting the value computed above to NUM_PAGES.
+    set_nps(nps); // Setting the value computed above to NUM_PAGES.
 
     /**
      * Initialization of the physical allocation table (AT).
@@ -88,28 +91,35 @@ void pmem_init(unsigned int mbi_addr)
      */
 
     //iterate over all pages
-    for (unsigned int i = 0; i < nps; i++) {
-        if (i < VM_USERLO_PI || i >= VM_USERHI_PI) {
+    for (unsigned int i = 0; i < nps; i++)
+    {
+        if (i < VM_USERLO_PI || i >= VM_USERHI_PI)
+        {
             at_set_perm(i, 1);
-        } else { 
+        }
+        else
+        {
             at_set_perm(i, 0);
         }
     }
 
     //iterate over each entry in the physical memory table
-    for (unsigned int i = 0; i < table_size; i++) {
+    for (unsigned int i = 0; i < table_size; i++)
+    {
 
         //get the length of each physical memory entry
         entry_start = get_mms(i);
         entry_end = entry_start + get_mml(i) - 1;
 
-        //see how many pages can fit in an entry 
-        //also be ware since highest_addr + 1 = 0 (overflow for unsigned int) 
-        for (unsigned int page_start = entry_start; page_start < entry_end - PAGESIZE; page_start += PAGESIZE) {
+        //see how many pages can fit in an entry
+        //also be ware since highest_addr + 1 = 0 (overflow for unsigned int)
+        for (unsigned int page_start = entry_start; page_start <= entry_end - PAGESIZE + 1; page_start += PAGESIZE)
+        {
 
             //get page idx and align to beginning of page
             page_idx = page_start / PAGESIZE;
-            if (page_start % PAGESIZE > 0) {
+            if (page_start % PAGESIZE > 0)
+            {
                 page_idx++;
             }
 
@@ -119,8 +129,14 @@ void pmem_init(unsigned int mbi_addr)
 
             //change permission for that page
             if (VM_USERLO_PI <= page_idx && page_idx < VM_USERHI_PI &&
-            is_usable(i)) {
+                is_usable(i))
+            {
                 at_set_perm(page_idx, 2);
+            }
+
+            if (page_start + PAGESIZE <= page_start)
+            {
+                break;
             }
         }
     }
