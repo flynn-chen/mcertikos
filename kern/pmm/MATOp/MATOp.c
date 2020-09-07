@@ -23,7 +23,17 @@
  */
 unsigned int palloc()
 {
-    // TODO
+    if (get_nps() == 0) {
+        return 0;
+    }
+
+    // TODO: memoization
+    for (unsigned int i = 0; i < get_nps(); i++) {
+        if (at_is_norm(i) > 0 && !at_is_allocated(i)) {
+            at_set_allocated(i, 1);
+            return i;
+        }
+    }
     return 0;
 }
 
@@ -37,5 +47,5 @@ unsigned int palloc()
  */
 void pfree(unsigned int pfree_index)
 {
-    // TODO
+    at_set_allocated(pfree_index, 0);
 }
