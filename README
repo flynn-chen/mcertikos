@@ -13,27 +13,37 @@ Questions:
 The processor enters 32-bit at line 107 of boot1.S (movl %eax, %cr0) where the protected mode enable flag is flipped and moved into the registers. 
 
 2. What is the last instruction of the boot loader executed, and what is the first instruction of the kernel it just loaded?
-The last instruction of the boot loader is line 10 in exec_kernel.S where it jumps to the instruction held in the address in %edx.
+The last instruction of the boot loader is line 10 in exec_kernel.S where it jumps to the instruction held in the address in %edx (%edx = 0x1023e0 at the time this executes).
 The first instruction of the kernel is "cli", clear interrupt flags in line 21 of kern/init/entry.S.
 
 3. Where is the first instruction of the kernel?
 In line 21 of kern/init/entry.S.
 
 4. How does the boot loader decide how many sectors it must read in order to fetch the entire kernel from disk? Where does it find this information?
-The bootloader decides the information from the ELF header stored in memory in location 0x464C457FU, as declared in line 128 of boot/boot1/boot1lib.h.
+The bootloader decides the sector information from the ELF header stored in memory in location 0x464C457FU, as declared in line 128 of boot/boot1/boot1lib.h.
 
 5. (From MATOp.c) Do you have to scan the allocation table from index 0? Recall how you have initialized the table in pmem_init.
 No, we declared a variable to keep track of the last free allocation table page so that retrieval is faster.
 
 Descriptions:
 
-We implemented Physical Memory Management by implementing the functions in according to the specifications.
+We implemented Physical Memory Management by abstracting the functionality into three layers.
 
-MATIntro
-- Wrote code to access/change the entries in AT.
+1. MATIntro
+- Access/change the entries in AT.
 
-MATInit
+2. MATInit
 - Initialized the permission for each page by scanning the physical memory table.
+    - First, we calcuated the number of pages that can fit in physical memory
+    - Reserve the first and last GB of memory for kernel
+    - Iterate through the entries in the AT, for each page that fits in an AT entry
+        - check if they are reserved for BIOS
+        - or label it as normal permission that is allocatable
 
-MATOp
-- Keep track of free memory and allow allocation and free by changing the page status. 
+3. MATOp
+- palloc():
+    - Found the first page of free memory, and saved its index
+    - next call to palloc() will start from the last page of free memory and move towards the end
+- pfree()
+    - change the allocation status of the page
+    - change the last free index to the page that was just freed if it's earlier than previously stored last free index
