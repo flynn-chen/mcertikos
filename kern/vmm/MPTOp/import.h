@@ -20,6 +20,6 @@ void rmv_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
 void set_ptbl_entry_identity(unsigned int pde_index, unsigned int pte_index,
                              unsigned int perm);
 
-#endif  /* _KERN_ */
+#endif /* _KERN_ */
 
-#endif  /* !_KERN_VMM_MPTOP_H_ */
+#endif /* !_KERN_VMM_MPTOP_H_ */

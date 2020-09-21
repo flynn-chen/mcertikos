@@ -12,3 +12,33 @@ List here the following info:
 2. whether you coded this assignment together, and if not, who worked on which part
 3. brief description of what you have implemented
 4. and anything else you would like us to know
+
+
+
+9-18-2020 QUESTIONS:
+    how to get a page table entry?
+
+    how to deal with page_index to get an updated page frame address?
+
+    what should we set new permission to?
+
+
+
+    
+
+    what is the structure of PDirPool? is PDirPool[proc_index] an entire page directory?
+        so PDirPool[proc_index][pde_index] is definitely a page directory entry, but what's the structure?
+    
+    what is the structure of page directory entries? and how to go from page dir entry to page table?
+        Are they just literally interpreted as page tables? (like in the manual)
+        Why then can we not treat it as a pointer? (ie why can we not directly index it to get a Page)
+
+        Where do the permission bits PTE_P, PTE_W, and PTE_U come into play? Are they the lowest order 
+        bits in the page directory entry?
+
+
+    In MPTIntro.c, is the page_index var the exact same as in MATIntro.c AKA is it an index into the AT table?
+        if so, page_index << 12 should be the physical address of the page
+
+    or should we be using index 0 aka the kernel process's identity map for viewing physical memory?
+        PDirPool[0][pde_index][page_index];

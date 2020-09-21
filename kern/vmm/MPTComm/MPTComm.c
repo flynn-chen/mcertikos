@@ -1,6 +1,8 @@
 #include <lib/x86.h>
 
 #include "import.h"
+#define VA_PDE_MASK 0xFFC00000 // 11111111110000000000000000000000
+#define VA_PTE_MASK 0x003ff000 // 00000000001111111111000000000000
 
 /**
  * For each process from id 0 to NUM_IDS - 1,
@@ -9,11 +11,24 @@
  */
 void pdir_init(unsigned int mbi_addr)
 {
-    // TODO: Define your local variables here.
+    unsigned int proc_index, pde_index;
 
     idptbl_init(mbi_addr);
 
-    // TODO
+    // set kernel's directories to identity
+    for (pde_index = 0; pde_index < 1024; pde_index++)
+    {
+        set_pdir_entry_identity(0, pde_index);
+    }
+
+    // remove all other directories
+    for (proc_index = 1; proc_index < NUM_IDS; proc_index++)
+    {
+        for (pde_index = 0; pde_index < 1024; pde_index++)
+        {
+            rmv_pdir_entry(proc_index, pde_index);
+        }
+    }
 }
 
 /**
@@ -25,8 +40,20 @@ void pdir_init(unsigned int mbi_addr)
  */
 unsigned int alloc_ptbl(unsigned int proc_index, unsigned int vaddr)
 {
-    // TODO
-    return 0;
+    unsigned int page_index = container_alloc(proc_index);
+    if (page_index == 0)
+    {
+        return 0;
+    }
+    else
+    {
+        set_pdir_entry_by_va(proc_index, vaddr, page_index);
+        unsigned int pde_index = (vaddr & VA_PDE_MASK) >> 22;
+        for (unsigned int pte_index = 0; pte_index < 1024; pte_index++)
+        {
+            rmv_ptbl_entry(proc_index, pde_index, pte_index);
+        }
+    }
 }
 
 // Reverse operation of alloc_ptbl.
@@ -34,5 +61,8 @@ unsigned int alloc_ptbl(unsigned int proc_index, unsigned int vaddr)
 // and frees the page for the page table entries (with container_free).
 void free_ptbl(unsigned int proc_index, unsigned int vaddr)
 {
-    // TODO
+    unsigned int pde = get_pdir_entry_by_va(proc_index, vaddr);
+    unsigned int page_index = pde >> 12;
+    container_free(proc_index, page_index);
+    rmv_pdir_entry_by_va(proc_index, vaddr);
 }

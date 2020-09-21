@@ -1,9 +1,9 @@
 #include <lib/debug.h>
 #include "import.h"
 
-#define PAGESIZE     4096
-#define VM_USERLO    0x40000000
-#define VM_USERHI    0xF0000000
+#define PAGESIZE 4096
+#define VM_USERLO 0x40000000
+#define VM_USERHI 0xF0000000
 #define VM_USERLO_PI (VM_USERLO / PAGESIZE)
 #define VM_USERHI_PI (VM_USERHI / PAGESIZE)
 
@@ -21,7 +21,14 @@ void pmem_init(unsigned int mbi_addr)
 {
     unsigned int nps;
 
-    // TODO: Define your local variables here.
+    unsigned int table_size;
+    unsigned int highest_addr;
+    unsigned int page_start;
+    unsigned int page_end;
+    unsigned int entry_start;
+    unsigned int entry_end;
+    unsigned int page_idx;
+    unsigned int entry_end_addr;
 
     // Calls the lower layer initialization primitive.
     // The parameter mbi_addr should not be used in the further code.
@@ -33,9 +40,31 @@ void pmem_init(unsigned int mbi_addr)
      * Hint: Think of it as the highest address in the ranges of the memory map table,
      *       divided by the page size.
      */
-    // TODO
+    table_size = get_size();
+    if (table_size == 0)
+    {
+        nps = 0;
+    }
 
-    set_nps(nps);  // Setting the value computed above to NUM_PAGES.
+    //the last entry might not have the highest address
+    highest_addr = 0;
+    for (unsigned int i = 0; i < table_size; i++)
+    {
+        entry_end_addr = get_mms(i) + get_mml(i) - 1;
+        if (entry_end_addr > highest_addr)
+        {
+            highest_addr = entry_end_addr;
+        }
+    }
+    //KERN_DEBUG("highest_addr: %x\n", highest_addr);
+
+    /*
+    TBD: This formula of calculating nps might not be right...
+    */
+
+    nps = highest_addr / PAGESIZE;
+
+    set_nps(nps); // Setting the value computed above to NUM_PAGES.
 
     /**
      * Initialization of the physical allocation table (AT).
@@ -60,5 +89,55 @@ void pmem_init(unsigned int mbi_addr)
      *    the addresses are in a usable range. Currently, we do not utilize partial pages,
      *    so in that case, you should consider those pages as unavailable.
      */
-    // TODO
+
+    //iterate over all pages
+    for (unsigned int i = 0; i < nps; i++)
+    {
+        if (i < VM_USERLO_PI || i >= VM_USERHI_PI)
+        {
+            at_set_perm(i, 1);
+        }
+        else
+        {
+            at_set_perm(i, 0);
+        }
+    }
+
+    //iterate over each entry in the physical memory table
+    for (unsigned int i = 0; i < table_size; i++)
+    {
+
+        //get the length of each physical memory entry
+        entry_start = get_mms(i);
+        entry_end = entry_start + get_mml(i) - 1;
+
+        //see how many pages can fit in an entry
+        //also be ware since highest_addr + 1 = 0 (overflow for unsigned int)
+        for (unsigned int page_start = entry_start; page_start <= entry_end - PAGESIZE + 1; page_start += PAGESIZE)
+        {
+
+            //get page idx and align to beginning of page
+            page_idx = page_start / PAGESIZE;
+            if (page_start % PAGESIZE > 0)
+            {
+                page_idx++;
+            }
+
+            //change page_start to start of page
+            page_start = page_idx * PAGESIZE;
+            page_end = page_start + PAGESIZE - 1;
+
+            //change permission for that page
+            if (VM_USERLO_PI <= page_idx && page_idx < VM_USERHI_PI &&
+                is_usable(i))
+            {
+                at_set_perm(page_idx, 2);
+            }
+
+            if (page_start + PAGESIZE <= page_start)
+            {
+                break;
+            }
+        }
+    }
 }

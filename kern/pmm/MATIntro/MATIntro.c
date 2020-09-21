@@ -6,7 +6,8 @@ static unsigned int NUM_PAGES;
 /**
  * Structure representing information for one physical page.
  */
-struct ATStruct {
+struct ATStruct
+{
     /**
      * The permission of the page.
      * 0: Reserved by the BIOS.
@@ -25,7 +26,7 @@ struct ATStruct {
 /**
  * A 32 bit machine may have up to 4GB of memory.
  * So it may have up to 2^20 physical pages,
- * with the page size being 4KB.
+ * with the page size being 4KB (2^12). 
  */
 static struct ATStruct AT[1 << 20];
 
@@ -48,8 +49,14 @@ void set_nps(unsigned int nps)
  */
 unsigned int at_is_norm(unsigned int page_index)
 {
-    // TODO
-    return 0;
+    if (AT[page_index].perm > 1)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 /**
@@ -59,7 +66,8 @@ unsigned int at_is_norm(unsigned int page_index)
  */
 void at_set_perm(unsigned int page_index, unsigned int perm)
 {
-    // TODO
+    AT[page_index].perm = perm;
+    AT[page_index].allocated = 0;
 }
 
 /**
@@ -68,8 +76,14 @@ void at_set_perm(unsigned int page_index, unsigned int perm)
  */
 unsigned int at_is_allocated(unsigned int page_index)
 {
-    // TODO
-    return 0;
+    if (AT[page_index].allocated == 0)
+    {
+        return 0;
+    }
+    else
+    {
+        return 1;
+    }
 }
 
 /**
@@ -78,5 +92,5 @@ unsigned int at_is_allocated(unsigned int page_index)
  */
 void at_set_allocated(unsigned int page_index, unsigned int allocated)
 {
-    // TODO
+    AT[page_index].allocated = allocated;
 }

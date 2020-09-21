@@ -4,7 +4,7 @@
 
 #include "import.h"
 
-#define PT_PERM_UP  0
+#define PT_PERM_UP 0
 #define PT_PERM_PTU (PTE_P | PTE_W | PTE_U)
 
 /**
@@ -35,15 +35,14 @@ unsigned int IDPTbl[1024][1024] gcc_aligned(PAGESIZE);
 // Sets the CR3 register with the start address of the page structure for process # [index].
 void set_pdir_base(unsigned int index)
 {
-    // TODO
+    set_cr3(PDirPool[index]);
 }
 
 // Returns the page directory entry # [pde_index] of the process # [proc_index].
 // This can be used to test whether the page directory entry is mapped.
 unsigned int get_pdir_entry(unsigned int proc_index, unsigned int pde_index)
 {
-    // TODO
-    return 0;
+    return (unsigned int)PDirPool[proc_index][pde_index];
 }
 
 // Sets the specified page directory entry with the start address of physical
@@ -52,7 +51,8 @@ unsigned int get_pdir_entry(unsigned int proc_index, unsigned int pde_index)
 void set_pdir_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int page_index)
 {
-    // TODO
+    unsigned int new_frame_address = page_index << 12;
+    PDirPool[proc_index][pde_index] = (unsigned int *)(new_frame_address | PT_PERM_PTU);
 }
 
 // Sets the page directory entry # [pde_index] for the process # [proc_index]
@@ -61,14 +61,17 @@ void set_pdir_entry(unsigned int proc_index, unsigned int pde_index,
 // This will be used to map a page directory entry to an identity page table.
 void set_pdir_entry_identity(unsigned int proc_index, unsigned int pde_index)
 {
-    // TODO
+    unsigned int pde_int = (unsigned int)IDPTbl[pde_index];
+    pde_int |= PT_PERM_PTU;
+    PDirPool[proc_index][pde_index] = (unsigned int *)pde_int;
+    // PDirPool[proc_index][pde_index] = (unsigned int *)((unsigned int)(IDPTbl[pde_index]) | PT_PERM_PTU);
 }
 
 // Removes the specified page directory entry (sets the page directory entry to 0).
 // Don't forget to cast the value to (unsigned int *).
 void rmv_pdir_entry(unsigned int proc_index, unsigned int pde_index)
 {
-    // TODO
+    PDirPool[proc_index][pde_index] = (unsigned int *)0;
 }
 
 // Returns the specified page table entry.
@@ -76,8 +79,12 @@ void rmv_pdir_entry(unsigned int proc_index, unsigned int pde_index)
 unsigned int get_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                             unsigned int pte_index)
 {
-    // TODO
-    return 0;
+    unsigned int pde_int = (unsigned int)PDirPool[proc_index][pde_index];
+
+    // mask lower 12 bits of the page directory entry
+    unsigned int page_frame = pde_int & ~(0x00000fff);
+    unsigned int pte_int = ((unsigned int *)page_frame)[pte_index];
+    return pte_int;
 }
 
 // Sets the specified page table entry with the start address of physical page # [page_index]
@@ -86,7 +93,9 @@ void set_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int pte_index, unsigned int page_index,
                     unsigned int perm)
 {
-    // TODO
+    unsigned int new_frame_address = page_index << 12;
+    unsigned int page_frame = (unsigned int)(PDirPool[proc_index][pde_index]) & ~(0x00000fff);
+    ((unsigned int *)page_frame)[pte_index] = new_frame_address | perm;
 }
 
 // Sets up the specified page table entry in IDPTbl as the identity map.
@@ -94,12 +103,25 @@ void set_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
 void set_ptbl_entry_identity(unsigned int pde_index, unsigned int pte_index,
                              unsigned int perm)
 {
-    // TODO
+    /*
+    The identity map is supposed to map the virtual addresses
+    back to themselves, which can now be interpreted as physical addresses
+
+    IDPTbl[1024][1024] so it can address 2^20 physical addresses (the exact
+    number of physical pages in the AT struct)
+    
+    so for IDPTbl[i][j], the page_index is i * 1024 + j in the AT struct
+    */
+
+    // TODO: kinda unsure about this one (upvote from Flynn)
+    unsigned int page_index = (pde_index * 1024) + pte_index;
+    IDPTbl[pde_index][pte_index] = (page_index << 12) | perm;
 }
 
 // Sets the specified page table entry to 0.
 void rmv_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int pte_index)
 {
-    // TODO
+    unsigned int page_frame = (unsigned int)(PDirPool[proc_index][pde_index]) & ~(0x00000fff);
+    ((unsigned int *)page_frame)[pte_index] = 0;
 }
