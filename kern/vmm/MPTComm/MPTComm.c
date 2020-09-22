@@ -1,8 +1,14 @@
 #include <lib/x86.h>
+#include <lib/debug.h>
 
 #include "import.h"
 #define VA_PDE_MASK 0xFFC00000 // 11111111110000000000000000000000
 #define VA_PTE_MASK 0x003ff000 // 00000000001111111111000000000000
+#define PAGESIZE 4096
+#define VM_USERLO 0X40000000
+#define VM_USERHI 0xF0000000
+#define VM_USERLO_PI (VM_USERLO / PAGESIZE)
+#define VM_USERHI_PI (VM_USERHI / PAGESIZE)
 
 /**
  * For each process from id 0 to NUM_IDS - 1,
@@ -15,20 +21,42 @@ void pdir_init(unsigned int mbi_addr)
 
     idptbl_init(mbi_addr);
 
-    // set kernel's directories to identity
-    for (pde_index = 0; pde_index < 1024; pde_index++)
-    {
-        set_pdir_entry_identity(0, pde_index);
-    }
-
-    // remove all other directories
-    for (proc_index = 1; proc_index < NUM_IDS; proc_index++)
+    for (proc_index = 0; proc_index < NUM_IDS; proc_index++)
     {
         for (pde_index = 0; pde_index < 1024; pde_index++)
         {
-            rmv_pdir_entry(proc_index, pde_index);
+            //kernel space
+            //VM_USERLO_PI >> 10 == 11111111110000000000000000000000 >> 22
+            if (pde_index < (VM_USERLO_PI >> 10))
+            {
+                set_pdir_entry_identity(proc_index, pde_index);
+            }
+            else if (pde_index >= (VM_USERHI_PI >> 10))
+            {
+                set_pdir_entry_identity(proc_index, pde_index);
+            }
+            //normal user space
+            else
+            {
+                rmv_pdir_entry(proc_index, pde_index);
+            }
         }
     }
+
+    // set kernel's directories to identity
+    // for (pde_index = 0; pde_index < 1024; pde_index++)
+    // {
+    //     set_pdir_entry_identity(0, pde_index);
+    // }
+
+    // remove all other directories
+    // for (proc_index = 1; proc_index < NUM_IDS; proc_index++)
+    // {
+    //     for (pde_index = 0; pde_index < 1024; pde_index++)
+    //     {
+    //         rmv_pdir_entry(proc_index, pde_index);
+    //     }
+    // }
 }
 
 /**
