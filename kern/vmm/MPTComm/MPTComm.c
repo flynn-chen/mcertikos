@@ -21,6 +21,12 @@ void pdir_init(unsigned int mbi_addr)
 
     idptbl_init(mbi_addr);
 
+    // set kernel's directories to identity
+    for (pde_index = 0; pde_index < 1024; pde_index++)
+    {
+        set_pdir_entry_identity(0, pde_index);
+    }
+
     for (proc_index = 0; proc_index < NUM_IDS; proc_index++)
     {
         for (pde_index = 0; pde_index < 1024; pde_index++)
@@ -42,21 +48,6 @@ void pdir_init(unsigned int mbi_addr)
             }
         }
     }
-
-    // set kernel's directories to identity
-    // for (pde_index = 0; pde_index < 1024; pde_index++)
-    // {
-    //     set_pdir_entry_identity(0, pde_index);
-    // }
-
-    // remove all other directories
-    // for (proc_index = 1; proc_index < NUM_IDS; proc_index++)
-    // {
-    //     for (pde_index = 0; pde_index < 1024; pde_index++)
-    //     {
-    //         rmv_pdir_entry(proc_index, pde_index);
-    //     }
-    // }
 }
 
 /**
