@@ -96,11 +96,11 @@ void idptbl_init(unsigned int mbi_addr)
             page_index = pde_index * 1024 + pde_index;
             if (page_index < VM_USERLO_PI || page_index >= VM_USERHI_PI)
             {
-                set_ptbl_entry_identity(pde_index, pte_index, 259);
+                set_ptbl_entry_identity(pde_index, pte_index, PTE_P | PTE_W | PTE_G);
             }
             else
             {
-                set_ptbl_entry_identity(pde_index, pte_index, 6);
+                set_ptbl_entry_identity(pde_index, pte_index, PTE_P | PTE_W);
             }
         }
     }

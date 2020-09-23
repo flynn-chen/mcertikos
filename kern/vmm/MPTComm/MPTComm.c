@@ -21,27 +21,21 @@ void pdir_init(unsigned int mbi_addr)
 
     idptbl_init(mbi_addr);
 
-    // set kernel's directories to identity
-    for (pde_index = 0; pde_index < 1024; pde_index++)
-    {
-        set_pdir_entry_identity(0, pde_index);
-    }
-
     for (proc_index = 0; proc_index < NUM_IDS; proc_index++)
     {
         for (pde_index = 0; pde_index < 1024; pde_index++)
         {
-            //kernel space
-            //VM_USERLO_PI >> 10 == 11111111110000000000000000000000 >> 22
-            if (pde_index < (VM_USERLO_PI >> 10))
+            // kernel space
+            // page_index = pde_index * 1024 = pde_index << 10
+            if ((pde_index << 10) < VM_USERLO_PI)
             {
                 set_pdir_entry_identity(proc_index, pde_index);
             }
-            else if (pde_index >= (VM_USERHI_PI >> 10))
+            else if ((pde_index << 10) >= VM_USERHI_PI)
             {
                 set_pdir_entry_identity(proc_index, pde_index);
             }
-            //normal user space
+            // normal user space
             else
             {
                 rmv_pdir_entry(proc_index, pde_index);
@@ -73,6 +67,7 @@ unsigned int alloc_ptbl(unsigned int proc_index, unsigned int vaddr)
             rmv_ptbl_entry(proc_index, pde_index, pte_index);
         }
     }
+    return page_index;
 }
 
 // Reverse operation of alloc_ptbl.

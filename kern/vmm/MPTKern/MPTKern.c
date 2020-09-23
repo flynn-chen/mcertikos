@@ -9,11 +9,15 @@
  */
 void pdir_init_kern(unsigned int mbi_addr)
 {
-    // TODO: Define your local variables here.
+    unsigned int pde_index;
 
     pdir_init(mbi_addr);
 
-    //TODO
+    // set kernel's directories to identity
+    for (pde_index = 0; pde_index < 1024; pde_index++)
+    {
+        set_pdir_entry_identity(0, pde_index);
+    }
 }
 
 /**
@@ -27,8 +31,24 @@ void pdir_init_kern(unsigned int mbi_addr)
 unsigned int map_page(unsigned int proc_index, unsigned int vaddr,
                       unsigned int page_index, unsigned int perm)
 {
-    // TODO
-    return 0;
+    unsigned int return_val;
+    unsigned int pde = get_pdir_entry_by_va(proc_index, vaddr);
+    if (pde == 0)
+    {
+        return_val = alloc_ptbl(proc_index, vaddr);
+        if (return_val == 0)
+        {
+            return MagicNumber;
+        }
+    }
+    else
+    {
+        return_val = pde >> 12;
+    }
+
+    // set permissions and do the mapping
+    set_ptbl_entry_by_va(proc_index, vaddr, page_index, perm);
+    return return_val;
 }
 
 /**
@@ -42,5 +62,11 @@ unsigned int map_page(unsigned int proc_index, unsigned int vaddr,
 unsigned int unmap_page(unsigned int proc_index, unsigned int vaddr)
 {
     // TODO
-    return 0;
+    unsigned int pte = get_ptbl_entry_by_va(proc_index, vaddr);
+    if (pte == 0)
+    {
+        return 0;
+    }
+    rmv_ptbl_entry_by_va(proc_index, vaddr);
+    return pte;
 }
