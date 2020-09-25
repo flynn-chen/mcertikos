@@ -1,4 +1,5 @@
 #include <lib/debug.h>
+#include <lib/types.h>
 #include "import.h"
 
 #define PAGESIZE 4096
@@ -20,15 +21,8 @@
 void pmem_init(unsigned int mbi_addr)
 {
     unsigned int nps;
-
-    unsigned int table_size;
-    unsigned int highest_addr;
-    unsigned int page_start;
-    unsigned int page_end;
-    unsigned int entry_start;
-    unsigned int entry_end;
-    unsigned int page_idx;
-    unsigned int entry_end_addr;
+    unsigned int pg_idx, pmmap_size, cur_addr, highest_addr;
+    unsigned int entry_idx, flag, isnorm, start, len;
 
     // Calls the lower layer initialization primitive.
     // The parameter mbi_addr should not be used in the further code.
@@ -40,30 +34,20 @@ void pmem_init(unsigned int mbi_addr)
      * Hint: Think of it as the highest address in the ranges of the memory map table,
      *       divided by the page size.
      */
-    table_size = get_size();
-    if (table_size == 0)
+    nps = 0;
+    entry_idx = 0;
+    pmmap_size = get_size();
+    while (entry_idx < pmmap_size)
     {
-        nps = 0;
-    }
-
-    //the last entry might not have the highest address
-    highest_addr = 0;
-    for (unsigned int i = 0; i < table_size; i++)
-    {
-        entry_end_addr = get_mms(i) + get_mml(i) - 1;
-        if (entry_end_addr > highest_addr)
+        cur_addr = get_mms(entry_idx) + get_mml(entry_idx);
+        if (nps < cur_addr)
         {
-            highest_addr = entry_end_addr;
+            nps = cur_addr;
         }
+        entry_idx++;
     }
-    //KERN_DEBUG("highest_addr: %x\n", highest_addr);
 
-    /*
-    TBD: This formula of calculating nps might not be right...
-    */
-
-    nps = highest_addr / PAGESIZE;
-
+    nps = ROUNDDOWN(nps, PAGESIZE) / PAGESIZE;
     set_nps(nps); // Setting the value computed above to NUM_PAGES.
 
     /**
@@ -89,55 +73,39 @@ void pmem_init(unsigned int mbi_addr)
      *    the addresses are in a usable range. Currently, we do not utilize partial pages,
      *    so in that case, you should consider those pages as unavailable.
      */
-
-    //iterate over all pages
-    for (unsigned int i = 0; i < nps; i++)
+    pg_idx = 0;
+    while (pg_idx < nps)
     {
-        if (i < VM_USERLO_PI || i >= VM_USERHI_PI)
+        if (pg_idx < VM_USERLO_PI || VM_USERHI_PI <= pg_idx)
         {
-            at_set_perm(i, 1);
+            at_set_perm(pg_idx, 1);
         }
         else
         {
-            at_set_perm(i, 0);
-        }
-    }
-
-    //iterate over each entry in the physical memory table
-    for (unsigned int i = 0; i < table_size; i++)
-    {
-
-        //get the length of each physical memory entry
-        entry_start = get_mms(i);
-        entry_end = entry_start + get_mml(i) - 1;
-
-        //see how many pages can fit in an entry
-        //also be ware since highest_addr + 1 = 0 (overflow for unsigned int)
-        for (unsigned int page_start = entry_start; page_start <= entry_end - PAGESIZE + 1; page_start += PAGESIZE)
-        {
-
-            //get page idx and align to beginning of page
-            page_idx = page_start / PAGESIZE;
-            if (page_start % PAGESIZE > 0)
+            entry_idx = 0;
+            flag = 0;
+            isnorm = 0;
+            while (entry_idx < pmmap_size && !flag)
             {
-                page_idx++;
+                isnorm = is_usable(entry_idx);
+                start = get_mms(entry_idx);
+                len = get_mml(entry_idx);
+                if (start <= pg_idx * PAGESIZE && (pg_idx + 1) * PAGESIZE <= start + len)
+                {
+                    flag = 1;
+                }
+                entry_idx++;
             }
 
-            //change page_start to start of page
-            page_start = page_idx * PAGESIZE;
-            page_end = page_start + PAGESIZE - 1;
-
-            //change permission for that page
-            if (VM_USERLO_PI <= page_idx && page_idx < VM_USERHI_PI &&
-                is_usable(i))
+            if (flag && isnorm)
             {
-                at_set_perm(page_idx, 2);
+                at_set_perm(pg_idx, 2);
             }
-
-            if (page_start + PAGESIZE <= page_start)
+            else
             {
-                break;
+                at_set_perm(pg_idx, 0);
             }
         }
+        pg_idx++;
     }
 }

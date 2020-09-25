@@ -1,4 +1,5 @@
 #include <lib/debug.h>
+#include <lib/types.h>
 #include "import.h"
 
 #define PAGESIZE 4096
@@ -6,6 +7,8 @@
 #define VM_USERHI 0xF0000000
 #define VM_USERLO_PI (VM_USERLO / PAGESIZE)
 #define VM_USERHI_PI (VM_USERHI / PAGESIZE)
+
+static unsigned int last_palloc_index = VM_USERLO_PI;
 
 /**
  * Allocate a physical page.
@@ -21,26 +24,44 @@
  * 2. Optimize the code using memoization so that you do not have to
  *    scan the allocation table from scratch every time.
  */
-
-unsigned int last_free = VM_USERLO_PI;
 unsigned int palloc()
 {
-    if (get_nps() == 0)
-    {
-        return 0;
-    }
+    unsigned int nps;
+    unsigned int palloc_index;
+    unsigned int palloc_free_index;
+    bool first;
 
-    // TODO: memoization
-    for (unsigned int i = last_free; i < VM_USERHI_PI; i++)
+    nps = get_nps();
+    palloc_index = last_palloc_index;
+    palloc_free_index = nps;
+    first = TRUE;
+
+    while ((palloc_index != last_palloc_index || first) && palloc_free_index == nps)
     {
-        if (at_is_norm(i) > 0 && !at_is_allocated(i))
+        first = FALSE;
+        if (at_is_norm(palloc_index) && !at_is_allocated(palloc_index))
         {
-            at_set_allocated(i, 1);
-            last_free = i + 1;
-            return i;
+            palloc_free_index = palloc_index;
+        }
+        palloc_index++;
+        if (palloc_index >= VM_USERHI_PI)
+        {
+            palloc_index = VM_USERLO_PI;
         }
     }
-    return 0;
+
+    if (palloc_free_index == nps)
+    {
+        palloc_free_index = 0;
+        last_palloc_index = VM_USERLO_PI;
+    }
+    else
+    {
+        at_set_allocated(palloc_free_index, 1);
+        last_palloc_index = palloc_free_index;
+    }
+
+    return palloc_free_index;
 }
 
 /**
@@ -54,8 +75,4 @@ unsigned int palloc()
 void pfree(unsigned int pfree_index)
 {
     at_set_allocated(pfree_index, 0);
-    if (pfree_index < last_free)
-    {
-        last_free = pfree_index;
-    }
 }
