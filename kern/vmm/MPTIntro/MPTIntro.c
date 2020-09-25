@@ -94,7 +94,7 @@ void set_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int perm)
 {
     unsigned int new_frame_address = page_index << 12;
-    unsigned int page_frame = (unsigned int)(PDirPool[proc_index][pde_index]) & ~(0x00000fff);
+    unsigned int page_frame = ((unsigned int)(PDirPool[proc_index][pde_index])) & ~(0x00000fff);
     ((unsigned int *)page_frame)[pte_index] = new_frame_address | perm;
 }
 
@@ -113,7 +113,6 @@ void set_ptbl_entry_identity(unsigned int pde_index, unsigned int pte_index,
     so for IDPTbl[i][j], the page_index is i * 1024 + j in the AT struct
     */
 
-    // TODO: kinda unsure about this one (upvote from Flynn)
     unsigned int page_index = (pde_index * 1024) + pte_index;
     IDPTbl[pde_index][pte_index] = (page_index << 12) | perm;
 }
@@ -122,6 +121,6 @@ void set_ptbl_entry_identity(unsigned int pde_index, unsigned int pte_index,
 void rmv_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int pte_index)
 {
-    unsigned int page_frame = (unsigned int)(PDirPool[proc_index][pde_index]) & ~(0x00000fff);
+    unsigned int page_frame = ((unsigned int)(PDirPool[proc_index][pde_index])) & ~(0x00000fff);
     ((unsigned int *)page_frame)[pte_index] = 0;
 }
