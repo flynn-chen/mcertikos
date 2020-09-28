@@ -31,24 +31,24 @@ void pdir_init_kern(unsigned int mbi_addr)
 unsigned int map_page(unsigned int proc_index, unsigned int vaddr,
                       unsigned int page_index, unsigned int perm)
 {
-    unsigned int return_val;
+    unsigned int pde_frame_address;
     unsigned int pde = get_pdir_entry_by_va(proc_index, vaddr);
     if (pde == 0)
     {
-        return_val = alloc_ptbl(proc_index, vaddr);
-        if (return_val == 0)
+        pde_frame_address = alloc_ptbl(proc_index, vaddr);
+        if (pde_frame_address == 0)
         {
             return MagicNumber;
         }
     }
     else
     {
-        return_val = pde >> 12;
+        pde_frame_address = pde >> 12;
     }
 
     // set permissions and do the mapping
     set_ptbl_entry_by_va(proc_index, vaddr, page_index, perm);
-    return return_val;
+    return pde_frame_address;
 }
 
 /**

@@ -74,8 +74,25 @@ int MPTIntro_test2()
  */
 int MPTIntro_test_own()
 {
-    // TODO (optional)
-    // dprintf("own test passed.\n");
+    // check that invalid indices don't crash and return 0
+    set_pdir_base(NUM_IDS);
+    if (get_pdir_entry(NUM_IDS, 1) != 0)
+    {
+        dprintf("own test 2 failed: (%d != 0)\n", get_pdir_entry(NUM_IDS, 1));
+        return 1;
+    }
+    if (get_pdir_entry(NUM_IDS, 1024) != 0)
+    {
+        dprintf("own test 3 failed: (%d != 0)\n", get_pdir_entry(NUM_IDS, 1024));
+        return 1;
+    }
+    set_ptbl_entry(NUM_IDS, 1024, 1024, 12, 7);
+    if (get_ptbl_entry(NUM_IDS, 1024, 1024) != 0)
+    {
+        dprintf("own test 4 failed: (%d != 0)\n", get_ptbl_entry(NUM_IDS, 1024, 1024));
+        return 1;
+    }
+    dprintf("own tests passed.\n");
     return 0;
 }
 

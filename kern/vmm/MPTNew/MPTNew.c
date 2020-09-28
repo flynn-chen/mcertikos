@@ -21,13 +21,13 @@ unsigned int alloc_page(unsigned int proc_index, unsigned int vaddr,
     {
         return MagicNumber;
     }
-    unsigned int map_page_index = map_page(proc_index, vaddr, page_index, perm);
-    if (map_page_index == 0)
+    unsigned int pde_frame_address = map_page(proc_index, vaddr, page_index, perm);
+    if (pde_frame_address == 0)
     {
         return MagicNumber;
     }
 
-    return map_page_index;
+    return pde_frame_address;
 }
 
 /**

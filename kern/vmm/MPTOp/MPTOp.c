@@ -51,6 +51,11 @@ void rmv_ptbl_entry_by_va(unsigned int proc_index, unsigned int vaddr)
 {
     unsigned int pde_index = (vaddr & VA_PDE_MASK) >> 22;
     unsigned int pte_index = (vaddr & VA_PTE_MASK) >> 12;
+    unsigned int pde = get_pdir_entry(proc_index, pde_index);
+    if (pde & 1 != 1) // check for present bit
+    {
+        return;
+    }
     rmv_ptbl_entry(proc_index, pde_index, pte_index);
 }
 

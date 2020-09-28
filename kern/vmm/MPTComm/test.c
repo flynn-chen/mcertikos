@@ -67,8 +67,29 @@ int MPTComm_test2()
  */
 int MPTComm_test_own()
 {
-    // TODO (optional)
-    // dprintf("own test passed.\n");
+    unsigned int i;
+    unsigned int perm;
+    for (i = 0; i < 1024; i++)
+    {
+        if (i >= 256 && i < 960)
+        {
+            perm = 3;
+        }
+        else
+        {
+            perm = 259;
+        }
+        if (get_ptbl_entry_by_va(0, i * 4096 * 1024) !=
+            i * 4096 * 1024 + perm)
+        {
+            dprintf("own test 1.1 failed (i = %d): (%d != %d)\n",
+                    i,
+                    get_ptbl_entry_by_va(0, i * 4096 * 1024),
+                    i * 4096 * 1024 + perm);
+            return 1;
+        }
+    }
+    dprintf("own test 1 passed.\n");
     return 0;
 }
 

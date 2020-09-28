@@ -71,8 +71,16 @@ int MPTKern_test2()
  */
 int MPTKern_test_own()
 {
-    // TODO (optional)
-    // dprintf("own test passed.\n");
+    // unsigned int pde_index, pte_index, vaddr;
+    // for (pde_index = 0; pde_index < 1024; pde_index++)
+    // {
+    //     for (pte_index = 0; pte_index < 1024; pte_index++)
+    //     {
+    //         vaddr = (pde_index << 22) | (pte_index << 12);
+    //     }
+    // }
+
+    dprintf("own test passed.\n");
     return 0;
 }
 

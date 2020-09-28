@@ -53,6 +53,8 @@ void pdir_init(unsigned int mbi_addr)
  */
 unsigned int alloc_ptbl(unsigned int proc_index, unsigned int vaddr)
 {
+    // note for Keaton: This is allocating a pdir_entry (aka a page table) and
+    // putting it into the page directory
     unsigned int page_index = container_alloc(proc_index);
     if (page_index == 0)
     {
@@ -76,6 +78,10 @@ unsigned int alloc_ptbl(unsigned int proc_index, unsigned int vaddr)
 void free_ptbl(unsigned int proc_index, unsigned int vaddr)
 {
     unsigned int pde = get_pdir_entry_by_va(proc_index, vaddr);
+    if ((pde & 1) != 1)
+    {
+        return;
+    }
     unsigned int page_index = pde >> 12;
     container_free(proc_index, page_index);
     rmv_pdir_entry_by_va(proc_index, vaddr);
