@@ -37,33 +37,33 @@ unsigned int IDPTbl[1024][1024] gcc_aligned(PAGESIZE);
  * Return 0 if invalid process index, else return 1
 */
 
-unsigned int check_proc_idx(unsigned int proc_index)
-{
-    if (proc_index >= NUM_IDS)
-    {
-        return 0;
-    }
-    return 1;
-}
+// unsigned int check_proc_idx(unsigned int proc_index)
+// {
+//     if (proc_index >= NUM_IDS)
+//     {
+//         return 0;
+//     }
+//     return 1;
+// }
 /**
  * Validate the given index to ensure it's < 1024
  * Return 0 if invalid index, else return 1
 */
-unsigned int check_page_idx(unsigned int index)
-{
-    if (index >= 1024)
-    {
-        return 0;
-    }
-    return 1;
-}
+// unsigned int check_page_idx(unsigned int index)
+// {
+//     if (index >= 1024)
+//     {
+//         return 0;
+//     }
+//     return 1;
+// }
 
 void set_pdir_base(unsigned int index)
 {
-    if (check_proc_idx(index) == 0)
-    {
-        return;
-    }
+    // if (check_proc_idx(index) == 0)
+    // {
+    //     return;
+    // }
     set_cr3(PDirPool[index]);
 }
 
@@ -71,10 +71,10 @@ void set_pdir_base(unsigned int index)
 // This can be used to test whether the page directory entry is mapped.
 unsigned int get_pdir_entry(unsigned int proc_index, unsigned int pde_index)
 {
-    if (check_proc_idx(proc_index) == 0 || check_page_idx(pde_index) == 0)
-    {
-        return 0;
-    }
+    // if (check_proc_idx(proc_index) == 0 || check_page_idx(pde_index) == 0)
+    // {
+    //     return 0;
+    // }
     return (unsigned int)PDirPool[proc_index][pde_index];
 }
 
@@ -84,10 +84,10 @@ unsigned int get_pdir_entry(unsigned int proc_index, unsigned int pde_index)
 void set_pdir_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int page_index)
 {
-    if (check_proc_idx(proc_index) == 0 || check_page_idx(pde_index) == 0)
-    {
-        return;
-    }
+    // if (check_proc_idx(proc_index) == 0 || check_page_idx(pde_index) == 0)
+    // {
+    //     return;
+    // }
     unsigned int new_frame_address = page_index << 12;
     PDirPool[proc_index][pde_index] = (unsigned int *)(new_frame_address | PT_PERM_PTU);
 }
@@ -98,10 +98,10 @@ void set_pdir_entry(unsigned int proc_index, unsigned int pde_index,
 // This will be used to map a page directory entry to an identity page table.
 void set_pdir_entry_identity(unsigned int proc_index, unsigned int pde_index)
 {
-    if (check_proc_idx(proc_index) == 0 || check_page_idx(pde_index) == 0)
-    {
-        return;
-    }
+    // if (check_proc_idx(proc_index) == 0 || check_page_idx(pde_index) == 0)
+    // {
+    //     return;
+    // }
     unsigned int pde_int = (unsigned int)IDPTbl[pde_index];
     pde_int |= PT_PERM_PTU;
     PDirPool[proc_index][pde_index] = (unsigned int *)pde_int;
@@ -112,10 +112,10 @@ void set_pdir_entry_identity(unsigned int proc_index, unsigned int pde_index)
 // Don't forget to cast the value to (unsigned int *).
 void rmv_pdir_entry(unsigned int proc_index, unsigned int pde_index)
 {
-    if (check_proc_idx(proc_index) == 0 || check_page_idx(pde_index) == 0)
-    {
-        return;
-    }
+    // if (check_proc_idx(proc_index) == 0 || check_page_idx(pde_index) == 0)
+    // {
+    //     return;
+    // }
     PDirPool[proc_index][pde_index] = (unsigned int *)0;
 }
 
@@ -124,10 +124,10 @@ void rmv_pdir_entry(unsigned int proc_index, unsigned int pde_index)
 unsigned int get_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                             unsigned int pte_index)
 {
-    if (check_proc_idx(proc_index) == 0 || check_page_idx(pde_index) == 0 || check_page_idx(pte_index) == 0)
-    {
-        return 0;
-    }
+    // if (check_proc_idx(proc_index) == 0 || check_page_idx(pde_index) == 0 || check_page_idx(pte_index) == 0)
+    // {
+    //     return 0;
+    // }
     unsigned int pde_int = (unsigned int)PDirPool[proc_index][pde_index];
 
     // mask lower 12 bits of the page directory entry
@@ -142,10 +142,10 @@ void set_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int pte_index, unsigned int page_index,
                     unsigned int perm)
 {
-    if (check_proc_idx(proc_index) == 0 || check_page_idx(pde_index) == 0 || check_page_idx(pte_index) == 0)
-    {
-        return;
-    }
+    // if (check_proc_idx(proc_index) == 0 || check_page_idx(pde_index) == 0 || check_page_idx(pte_index) == 0)
+    // {
+    //     return;
+    // }
     unsigned int new_frame_address = page_index << 12;
     unsigned int page_frame = ((unsigned int)(PDirPool[proc_index][pde_index])) & ~(0x00000fff);
     ((unsigned int *)page_frame)[pte_index] = new_frame_address | perm;
@@ -166,10 +166,10 @@ void set_ptbl_entry_identity(unsigned int pde_index, unsigned int pte_index,
     so for IDPTbl[i][j], the page_index is i * 1024 + j in the AT struct
     */
 
-    if (check_page_idx(pde_index) == 0 || check_page_idx(pte_index) == 0)
-    {
-        return;
-    }
+    // if (check_page_idx(pde_index) == 0 || check_page_idx(pte_index) == 0)
+    // {
+    //     return;
+    // }
 
     unsigned int page_index = (pde_index * 1024) + pte_index;
     IDPTbl[pde_index][pte_index] = (page_index << 12) | perm;
@@ -179,10 +179,10 @@ void set_ptbl_entry_identity(unsigned int pde_index, unsigned int pte_index,
 void rmv_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int pte_index)
 {
-    if (check_proc_idx(proc_index) == 0 || check_page_idx(pde_index) == 0 || check_page_idx(pte_index) == 0)
-    {
-        return;
-    }
+    // if (check_proc_idx(proc_index) == 0 || check_page_idx(pde_index) == 0 || check_page_idx(pte_index) == 0)
+    // {
+    //     return;
+    // }
     unsigned int page_frame = ((unsigned int)(PDirPool[proc_index][pde_index])) & ~(0x00000fff);
     ((unsigned int *)page_frame)[pte_index] = 0;
 }

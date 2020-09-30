@@ -9,36 +9,157 @@ To use sample lab 1 solutions: copy files in samples/ to appropriate directories
 
 List here the following info:
 1. who you have worked with
+
+Flynn Chen (zc264) and Keaton Mueller (kim6)
+
 2. whether you coded this assignment together, and if not, who worked on which part
+
+We worked on all of it together.
+
 3. brief description of what you have implemented
-4. and anything else you would like us to know
 
+MContainer
+    We implemented a statically allocated array of containers to manage processes. 
+    Within each element of the container, we have store information regarding that process.
+    We wrote code to access the container values, allocate, free, and split existing containers
+    for child processes. 
 
+    container_init
+        - count the number of usable pages
+        - initialize the container array by filling in with the corresponding quota 
+        (total number of usable pages), usage, parent, children and permission
+    container_get_parent
+        - method to get the parent process ID of a container element
+    container_get_nchildren
+        - method to get the number of children of a container element
+    container_get_quota
+        - method to get the quota of a container element
+    container_get_usage
+        - method to get the usage of a container element
+    container_can_consume
+        - method to evaluate whether if there is enough quota left for a container element
+    container_split
+        - allocate containers to be a child process 
+    container_alloc
+        - allocate a new physical memory page for the process and increment usage only if the 
+        current usage is less than the quota.
+    container_free
+        - free physical memory page and decrement usage if the usage is greater than zero.
 
-9-18-2020 QUESTIONS:
-    how to get a page table entry?
+MPTIntro
+    For this layer, we implemented methods to set, get, and remove page directory, page table, and
+    for user and kernel regions. Most notably, we converted indices to memory address and back to 
+    find locations of corresponding pages and addresses.
 
-    how to deal with page_index to get an updated page frame address?
+    set_pdir_base
+        - call set_cr3 and pass the page directory of the given processor index
+    get_pdir_entry
+        - index the PDirPool at the given proc_index and pde_index and case to an unsigned int
+    set_pdir_entry
+        - compute new frame address by shifting page_index left by 12 bits
+        - use it to overwrite the entry in the PDirPool, adding permission bits and casting to unsigned int *
+    set_pdir_entry_identity
+        - get the pdir_entry from the IDPTbl, add correct prmissions, then insert it into PDirPool
+    rmv_pdir_entry
+        - set the specified entry to 0 (casted to unsigned int *)
+    get_ptbl_entry
+        - get the pdir_entry from PDirPool
+        - mask the lower 12 bits to get the page frame address
+        - case that page frame address to an unsigned int * and index at pte_index to get the ptbl_entry
+    set_ptbl_entry
+        - shift page_index left by 12 bits to compute new page frame address
+        - perform similar steps to get_ptbl_entry to overwrite the ptbl_entry with the new page frame address and permissions
+    set_ptbl_entry_identity
+        - compute page_index by doing pde_index * 1024 + pte_index
+        - shift that page index left by 12 bits to get frame address, and set IDPTbl entry to that along with permissions
+    rmv_ptbl_entry
+        - set the specified ptbl_entry location to 0
 
-    what should we set new permission to?
+MPTOp
+    - for this layer, we extract pde_index and pte_index as follows:
+        - pde_index: mask lower 22 bits of vaddr and shift right 22 bits
+        - pte_index: mask upper 10 and lower 12 bits of vaddr and shift right 12 bits
+        
+    get_ptbl_entry_by_va
+        - extract pde_index and pte_index from vaddr
+        - call get_pdir_entry and check for present bit to see if mapping exists, if not return 0
+        - call get_ptbl_entry and check for present bit to see if mapping exists, if not return 0
+        - return ptbl_entry
+    set_ptbl_entry_by_va
+        - extract pde_index and pte_index from vaddr
+        - call set_ptbl_entry
+    rmv_ptbl_entry_by_va
+        - extract pde_index and pte_index from vaddr
+        - call get_pdir_entry and check for present bit. if not present return
+        - call rmv_ptbl_entry
+    get_pdir_entry_by_va
+        - extract pde_index from vaddr
+        - call get_pdir_entry and check for present bit. if not present return 0
+        - return pdir_entry
+    set_pdir_entry_by_va
+        - extract pde_index from vaddr
+        - call set_pdir_entry
+    rmv_pdir_entry_by_va
+        - extract pde_index from vaddr
+        - call rmv_pdir_entry
+    idptbl_init
+        - call container_init
+        - loop over every pde_index [0, 1023]
+            - loop over every pte_index [0, 1023]
+                - compute page_index by doing pde_index * 1024 + pte_index
+                - call set_ptbl_entry_identity
+                    - if page_index was in kernel memory, use PTE_P | PTE_W | PTE_G permissions
+                    - if page_index was in user memory, use PTE_P_ | PTE_W permission
 
+MPTComm
+    For the communcation layer, we implemented a function to initialize the page directory table, and to allocate
+    and free pages for a page table
 
+    pdir_init
+        - We first call the function idptbl_init to intialize the identity page table for kernel regions.
+        - Then, we reserved the pages before VM_USERLO_PI and above VM_USERHI_PI for kernel memory
+        - Else, remove page directory entry for normal user spaces
+        
+    alloc_ptbl
+        - Allocate a page for the page table and registers it in the page directory
+        - Clear contents in the newly allocated page.
+        
+    free_ptbl
+        - Free a page in the container space associated with a process
+        - Removes that page from the page directory entry
 
-    
+MPTKern
+    Initialize the page directory in the kernel, map and unmap pages in virtual addressing
+    by registering the pages in page directory/table data structure.
 
-    what is the structure of PDirPool? is PDirPool[proc_index] an entire page directory?
-        so PDirPool[proc_index][pde_index] is definitely a page directory entry, but what's the structure?
-    
-    what is the structure of page directory entries? and how to go from page dir entry to page table?
-        Are they just literally interpreted as page tables? (like in the manual)
-        Why then can we not treat it as a pointer? (ie why can we not directly index it to get a Page)
+    pdir_init_kern
+        - call pdir_init
+        - loop over pde_index [0, 1023]
+            - call set_pdir_entry_identity for process 0
+    map_page
+        - call get_pdir_entry_by_va
+        - if pdir_entry exists
+            - compute pde_frame_address by shifting pdir_entry left by 12
+        - else if pdir_entry didn't exist
+            - get pde_frame_address by calling alloc_ptbl
+            - if pde_frame_address is 0 (the alloc failed)
+                - return MagicNumber
+        - call set_ptbl_entry_by_va
+        - return pde_frame_address
+    unmap_page
+        - get ptbl_entry by calling get_ptbl_entry_by_va
+        - if ptbl_entry is 0, return 0
+        - call rmv_ptbl_entry_by_va
+        - return ptbl_entry
 
-        Where do the permission bits PTE_P, PTE_W, and PTE_U come into play? Are they the lowest order 
-        bits in the page directory entry?
+MPTNew
+    We implemented functions to allocate a new page when no mapping is found.
+    This layer also handles container splits.
 
+    alloc_page
+        - allocate a page for the container
+        - register the new page in virtual address with map_page
+        - if unsuccessful, return magic number
 
-    In MPTIntro.c, is the page_index var the exact same as in MATIntro.c AKA is it an index into the AT table?
-        if so, page_index << 12 should be the physical address of the page
-
-    or should we be using index 0 aka the kernel process's identity map for viewing physical memory?
-        PDirPool[0][pde_index][page_index];
+4. and anything else you would like us to know?
+None.
