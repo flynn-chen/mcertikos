@@ -23,7 +23,8 @@ void sys_puts(void)
     str_uva = syscall_get_arg2();
     str_len = syscall_get_arg3();
 
-    if (!(VM_USERLO <= str_uva && str_uva + str_len <= VM_USERHI)) {
+    if (!(VM_USERLO <= str_uva && str_uva + str_len <= VM_USERHI))
+    {
         syscall_set_errno(E_INVAL_ADDR);
         return;
     }
@@ -31,13 +32,15 @@ void sys_puts(void)
     remain = str_len;
     cur_pos = str_uva;
 
-    while (remain) {
+    while (remain)
+    {
         if (remain < PAGESIZE - 1)
             nbytes = remain;
         else
             nbytes = PAGESIZE - 1;
 
-        if (pt_copyin(cur_pid, cur_pos, sys_buf[cur_pid], nbytes) != nbytes) {
+        if (pt_copyin(cur_pid, cur_pos, sys_buf[cur_pid], nbytes) != nbytes)
+        {
             syscall_set_errno(E_MEM);
             return;
         }
@@ -77,7 +80,40 @@ extern uint8_t _binary___obj_user_fork_test_fork_test_start[];
  */
 void sys_spawn(void)
 {
-    // TODO
+    unsigned int elf_id = syscall_get_arg2();
+    unsigned int quota = syscall_get_arg3();
+
+    void *elf_addr;
+    switch (elf_id)
+    {
+    case 1:
+        elf_addr = (void *)_binary___obj_user_pingpong_ping_start;
+        break;
+    case 2:
+        elf_addr = (void *)_binary___obj_user_pingpong_pong_start;
+        break;
+    case 3:
+        elf_addr = (void *)_binary___obj_user_pingpong_ding_start;
+        break;
+    case 4:
+        elf_addr = (void *)_binary___obj_user_fork_test_fork_test_start;
+        break;
+    default:
+        syscall_set_errno(E_INVAL_PID);
+        syscall_set_retval1(NUM_IDS);
+        return;
+    }
+
+    unsigned int pid = proc_create(elf_addr, quota);
+    if (pid == NUM_IDS)
+    {
+        syscall_set_errno(E_INVAL_PID);
+        syscall_set_retval1(NUM_IDS);
+        return;
+    }
+    syscall_set_errno(E_SUCC);
+    syscall_set_retval1(pid);
+    return;
 }
 
 /**
@@ -88,11 +124,14 @@ void sys_spawn(void)
  */
 void sys_yield(void)
 {
-    // TODO
+    thread_yield();
+    syscall_set_errno(E_SUCC);
 }
 
 // Your implementation of fork
 void sys_fork()
 {
-    // TODO
+    unsigned int cur_id = get_curid();
+    unsigned int child_id = 6; // create new process with proc_create()
+    shallow_copy_mem(cur_id, child_id);
 }

@@ -10,11 +10,19 @@
  * Since the value 0 is reserved for thread id 0, we use NUM_IDS
  * to represent the NULL index.
  */
-struct TCB {
+struct TCB
+{
     t_state state;
     unsigned int prev;
     unsigned int next;
 };
+
+/*
+|   |   |   | ...
+  ^       ^ 
+  |       |  
+  ---------
+*/
 
 struct TCB TCBPool[NUM_IDS];
 

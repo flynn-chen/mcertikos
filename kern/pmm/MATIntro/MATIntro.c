@@ -6,7 +6,8 @@ static unsigned int NUM_PAGES;
 /**
  * Structure representing information for one physical page.
  */
-struct ATStruct {
+struct ATStruct
+{
     /**
      * The permission of the page.
      * 0: Reserved by the BIOS.
@@ -48,8 +49,19 @@ void set_nps(unsigned int nps)
  */
 unsigned int at_is_norm(unsigned int page_index)
 {
-    // TODO
-    return 0;
+    unsigned int perm;
+
+    perm = AT[page_index].perm;
+    if (perm > 1)
+    {
+        perm = 1;
+    }
+    else
+    {
+        perm = 0;
+    }
+
+    return perm;
 }
 
 /**
@@ -59,7 +71,8 @@ unsigned int at_is_norm(unsigned int page_index)
  */
 void at_set_perm(unsigned int page_index, unsigned int perm)
 {
-    // TODO
+    AT[page_index].perm = perm;
+    AT[page_index].allocated = 0;
 }
 
 /**
@@ -68,8 +81,15 @@ void at_set_perm(unsigned int page_index, unsigned int perm)
  */
 unsigned int at_is_allocated(unsigned int page_index)
 {
-    // TODO
-    return 0;
+    unsigned int allocated;
+
+    allocated = AT[page_index].allocated;
+    if (allocated > 0)
+    {
+        allocated = 1;
+    }
+
+    return allocated;
 }
 
 /**
@@ -78,5 +98,5 @@ unsigned int at_is_allocated(unsigned int page_index)
  */
 void at_set_allocated(unsigned int page_index, unsigned int allocated)
 {
-    // TODO
+    AT[page_index].allocated = allocated;
 }

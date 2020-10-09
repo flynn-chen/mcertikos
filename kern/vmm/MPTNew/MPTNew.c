@@ -16,8 +16,18 @@
 unsigned int alloc_page(unsigned int proc_index, unsigned int vaddr,
                         unsigned int perm)
 {
-    // TODO
-    return 0;
+    unsigned int page_index = container_alloc(proc_index);
+    if (page_index == 0)
+    {
+        return MagicNumber;
+    }
+    unsigned int pde_frame_address = map_page(proc_index, vaddr, page_index, perm);
+    if (pde_frame_address == 0)
+    {
+        return MagicNumber;
+    }
+
+    return pde_frame_address;
 }
 
 /**

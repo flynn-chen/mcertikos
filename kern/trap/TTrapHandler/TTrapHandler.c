@@ -16,7 +16,7 @@ static void trap_dump(tf_t *tf)
     if (tf == NULL)
         return;
 
-    uintptr_t base = (uintptr_t) tf;
+    uintptr_t base = (uintptr_t)tf;
 
     KERN_DEBUG("trapframe at %x\n", base);
     KERN_DEBUG("\t%08x:\tedi:   \t\t%08x\n", &tf->regs.edi, tf->regs.edi);
@@ -60,14 +60,17 @@ void pgflt_handler(void)
     errno = uctx_pool[cur_pid].err;
     fault_va = rcr2();
 
-    if ((errno & 0x3) == 0x3) {
+    if ((errno & 0x3) == 0x3)
+    {
         // error for writing to a read-only page
         pte_entry = get_ptbl_entry_by_va(cur_pid, fault_va);
-        if (pte_entry & PTE_COW) {
+        if (pte_entry & PTE_COW)
+        {
             // handling copy-on-write
             // TODO
-
-        } else {
+        }
+        else
+        {
             KERN_PANIC("Writing to read-only page: va = %p\n", fault_va);
         }
     }
@@ -76,13 +79,15 @@ void pgflt_handler(void)
     // KERN_DEBUG("Page fault: VA 0x%08x, errno 0x%08x, process %d, EIP 0x%08x.\n",
     //            fault_va, errno, cur_pid, uctx_pool[cur_pid].eip);
 
-    if (errno & PFE_PR) {
+    if (errno & PFE_PR)
+    {
         KERN_PANIC("Permission denied: va = 0x%08x, errno = 0x%08x.\n",
                    fault_va, errno);
         return;
     }
 
-    if (alloc_page(cur_pid, fault_va, PTE_W | PTE_U | PTE_P) == MagicNumber) {
+    if (alloc_page(cur_pid, fault_va, PTE_W | PTE_U | PTE_P) == MagicNumber)
+    {
         KERN_PANIC("Page allocation failed: va = 0x%08x, errno = 0x%08x.\n",
                    fault_va, errno);
     }
@@ -94,7 +99,15 @@ void pgflt_handler(void)
  */
 void exception_handler(void)
 {
-    // TODO
+    unsigned int cur_pid = get_curid();
+    if (uctx_pool[cur_pid].trapno == T_PGFLT)
+    {
+        pgflt_handler();
+    }
+    else
+    {
+        default_exception_handler();
+    }
 }
 
 static int spurious_intr_handler(void)
@@ -120,7 +133,21 @@ static int default_intr_handler(void)
  */
 void interrupt_handler(void)
 {
-    // TODO
+    unsigned int cur_pid = get_curid();
+    unsigned int trapno = uctx_pool[cur_pid].trapno;
+
+    if (trapno == T_IRQ0 + IRQ_TIMER)
+    {
+        timer_intr_handler();
+    }
+    else if (trapno == T_IRQ0 + IRQ_SPURIOUS)
+    {
+        spurious_intr_handler();
+    }
+    else
+    {
+        default_intr_handler();
+    }
 }
 
 void trap(tf_t *tf)
@@ -128,13 +155,12 @@ void trap(tf_t *tf)
     unsigned int cur_pid;
 
     cur_pid = get_curid();
-    uctx_pool[cur_pid] = *tf;  // save the current user context (trap frame)
-    set_pdir_base(0);          // switch to the kernel's page table
+    uctx_pool[cur_pid] = *tf; // save the current user context (trap frame)
+    set_pdir_base(0);         // switch to the kernel's page table
 
     if (T_DIVIDE <= tf->trapno && tf->trapno <= T_SECEV)
         exception_handler();
-    else if (T_IRQ0 + IRQ_TIMER <= tf->trapno
-             && tf->trapno <= T_IRQ0 + IRQ_IDE2)
+    else if (T_IRQ0 + IRQ_TIMER <= tf->trapno && tf->trapno <= T_IRQ0 + IRQ_IDE2)
         interrupt_handler();
     else if (tf->trapno == T_SYSCALL)
         syscall_dispatch();

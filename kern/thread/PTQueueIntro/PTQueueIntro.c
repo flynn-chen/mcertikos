@@ -8,10 +8,19 @@
  * This implementation is valid if at any given time, a thread
  * is in at most one thread queue.
  */
-struct TQueue {
+struct TQueue
+{
     unsigned int head;
     unsigned int tail;
 };
+
+/*
+ head    tail
+|   |   |   | ...
+  ^       ^ 
+  |       |  
+  ---------
+*/
 
 /**
  * The mCertiKOS kernel needs NUM_IDS + 1 thread queues.

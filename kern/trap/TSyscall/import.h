@@ -21,6 +21,8 @@ void syscall_set_retval5(unsigned int retval);
 unsigned int proc_create(void *elf_addr, unsigned int quota);
 void thread_yield(void);
 
-#endif  /* _KERN_ */
+void shallow_copy_mem(unsigned int from_pid, unsigned int to_pid);
 
-#endif  /* !_KERN_TRAP_TSYSCALL_H_ */
+#endif /* _KERN_ */
+
+#endif /* !_KERN_TRAP_TSYSCALL_H_ */
