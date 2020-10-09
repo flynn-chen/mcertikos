@@ -4,10 +4,9 @@
 #include <lib/debug.h>
 #include <lib/x86.h>
 #include <dev/intr.h>
-
-#include <vmm/MPTOp/export.h>
-
 #include "import.h"
+#include <vmm/MPTOp/export.h>
+#include <vmm/MPTCopy/export.h>
 
 extern tf_t uctx_pool[NUM_IDS];
 
@@ -67,7 +66,7 @@ void pgflt_handler(void)
         if (pte_entry & PTE_COW)
         {
             // handling copy-on-write
-            // TODO
+            deep_copy_mem(cur_pid, fault_va);
         }
         else
         {

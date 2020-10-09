@@ -9,7 +9,8 @@ unsigned int at_is_allocated(unsigned int page_index);
 void pmem_init(unsigned int mbi_addr);
 unsigned int palloc(void);
 void pfree(unsigned int pfree_index);
+unsigned int container_get_quota(unsigned int id);
 
-#endif  /* _KERN_ */
+#endif /* _KERN_ */
 
-#endif  /* !_KERN_PMM_MCONTAINER_H_ */
+#endif /* !_KERN_PMM_MCONTAINER_H_ */

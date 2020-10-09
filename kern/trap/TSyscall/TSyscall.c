@@ -5,6 +5,7 @@
 #include <lib/trap.h>
 #include <lib/syscall.h>
 
+#include <vmm/MPTCopy/export.h>
 #include "import.h"
 
 static char sys_buf[NUM_IDS][PAGESIZE];
@@ -129,9 +130,16 @@ void sys_yield(void)
 }
 
 // Your implementation of fork
-void sys_fork()
+void sys_fork(void)
 {
-    unsigned int cur_id = get_curid();
-    unsigned int child_id = 6; // create new process with proc_create()
-    shallow_copy_mem(cur_id, child_id);
+    unsigned int child_id = proc_fork();
+    if (child_id < NUM_IDS)
+    {
+        syscall_set_errno(E_SUCC);
+        syscall_set_retval1(child_id);
+    }
+    else
+    {
+        syscall_set_errno(E_INVAL_PID);
+    }
 }

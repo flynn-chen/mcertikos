@@ -3,10 +3,12 @@
 #include <lib/debug.h>
 
 #include "import.h"
+#include <pmm/MContainer/export.h>
+#include <vmm/MPTOp/export.h>
 
 #define PT_PERM_UP 0
 #define PT_PERM_PTU (PTE_P | PTE_W | PTE_U)
-#define PT_COW (PTE_P | PTE_U)
+// #define PT_COW (PTE_P | PTE_U)
 
 #define VA_PDE_MASK 0xFFC00000 // 11111111110000000000000000000000
 #define VA_PTE_MASK 0x003ff000 // 00000000001111111111000000000000
@@ -33,6 +35,8 @@ void rmv_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int pte_index);
 */
 
+void update_perm_ptbl(unsigned int proc_index, unsigned int pde_index);
+
 void shallow_copy_mem(unsigned int from_pid, unsigned int to_pid)
 {
     unsigned int pde_val, page_index;
@@ -55,7 +59,7 @@ void shallow_copy_mem(unsigned int from_pid, unsigned int to_pid)
     }
 }
 
-void update_perm_pbtl(unsigned int proc_index, unsigned int pde_index)
+void update_perm_ptbl(unsigned int proc_index, unsigned int pde_index)
 {
     unsigned int ptbl_entry, page_index;
     // iterate through each pbtl entry index
@@ -70,6 +74,27 @@ void update_perm_pbtl(unsigned int proc_index, unsigned int pde_index)
             continue;
         }
         // update the entry with new permissions
-        set_ptbl_entry(proc_index, pde_index, pte_index, page_index, PT_COW);
+        set_ptbl_entry(proc_index, pde_index, pte_index, page_index, (PTE_P & PTE_COW));
     }
+}
+
+void deep_copy_mem(unsigned int id, unsigned int vaddr)
+{
+    unsigned int ptbl_entry = get_ptbl_entry_by_va(id, vaddr);
+    unsigned int page_index = container_alloc(id); // allocate new page
+    if (page_index == 0)
+    {
+        return;
+    }
+
+    // copy old contents to new page
+    unsigned int to_frame_address = page_index << 12;
+    unsigned int from_frame_address = ptbl_entry & ~(0x00000fff);
+    for (unsigned int i = 0; i < PAGESIZE; i++)
+    {
+        (*((unsigned int *)(to_frame_address + i))) = (char)(*((unsigned int *)(from_frame_address + i)));
+    }
+
+    // update the mapping with the new page and permissions
+    set_ptbl_entry_by_va(id, vaddr, page_index, PT_PERM_PTU);
 }
