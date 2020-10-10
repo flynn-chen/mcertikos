@@ -67,6 +67,7 @@ void pgflt_handler(void)
         {
             // handling copy-on-write
             deep_copy_mem(cur_pid, fault_va);
+            return;
         }
         else
         {

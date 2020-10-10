@@ -6,6 +6,7 @@
 #include "import.h"
 #include <pmm/MContainer/export.h>
 #include <vmm/MPTOp/export.h>
+#include <vmm/MPTKern/export.h>
 
 #define PT_PERM_UP 0
 #define PT_PERM_PTU (PTE_P | PTE_W | PTE_U)
@@ -36,51 +37,27 @@ void rmv_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int pte_index);
 */
 
-void update_perm_ptbl(unsigned int proc_index, unsigned int pde_index);
+// void update_perm_ptbl(unsigned int proc_index, unsigned int pde_index);
 
 void shallow_copy_mem(unsigned int from_pid, unsigned int to_pid)
 {
-    unsigned int pde_val, page_index;
-    // iterate through the page directory entry
-    for (unsigned int pde_index = 0; pde_index < 1024; pde_index++)
+    unsigned int pde_index, pte_index, ptbl_entry, physical_page_index, vaddr;
+    for (pde_index = 0; pde_index < 1024; pde_index++)
     {
-        // point to the same addr space
-        pde_val = get_pdir_entry(from_pid, pde_index);
-        page_index = pde_val >> 12;
-        if (page_index < VM_USERLO_PI || page_index >= VM_USERHI_PI)
+        for (pte_index = 0; pte_index < 1024; pte_index++)
         {
-            continue;
+            vaddr = ((pde_index << 10) + pte_index) << 12;
+            if (vaddr >= VM_USERLO && vaddr < VM_USERHI)
+            {
+                ptbl_entry = get_ptbl_entry_by_va(from_pid, vaddr);
+                if (ptbl_entry & PTE_P)
+                {
+                    physical_page_index = ptbl_entry >> 12;
+                    // set_ptbl_entry_by_va(from_pid, vaddr, physical_page_index, (PTE_P | PTE_U | PTE_COW));
+                    map_page(to_pid, vaddr, physical_page_index, (PTE_P | PTE_U | PTE_COW));
+                }
+            }
         }
-
-        // KERN_DEBUG("pde - page_index: %u, pde_val: %u\n", page_index, pde_val);
-
-        // point to the same page index for the page directory entry
-        set_pdir_entry(to_pid, pde_index, page_index);
-
-        // only update page table entry permission
-        update_perm_ptbl(to_pid, pde_index);
-    }
-}
-
-void update_perm_ptbl(unsigned int proc_index, unsigned int pde_index)
-{
-    unsigned int ptbl_entry, page_index;
-    // iterate through each pbtl entry index
-    for (unsigned int pte_index = 0; pte_index < 1024; pte_index++)
-    {
-        // get the entry that's currenty there
-        ptbl_entry = get_ptbl_entry(proc_index, pde_index, pte_index);
-        page_index = ptbl_entry >> 12;
-        // don't modify it if it's not user memory
-        if (page_index < VM_USERLO_PI || page_index >= VM_USERHI_PI)
-        {
-            continue;
-        }
-
-        // KERN_DEBUG("pte - page_index: %u, ptbl_entry: %u\n", page_index, ptbl_entry);
-
-        // update the entry with new permissions
-        set_ptbl_entry(proc_index, pde_index, pte_index, page_index, (PTE_P | PTE_U | PTE_COW));
     }
 }
 
@@ -99,5 +76,29 @@ void deep_copy_mem(unsigned int id, unsigned int vaddr)
     memcpy((void *)to_frame_address, (void *)from_frame_address, PAGESIZE);
 
     // update the mapping with the new page and permissions
+    // map_page(id, vaddr, page_index, PT_PERM_PTU);
+    set_pdir_entry_by_va(id, vaddr, page_index);
     set_ptbl_entry_by_va(id, vaddr, page_index, PT_PERM_PTU);
 }
+
+// void update_perm_ptbl(unsigned int proc_index, unsigned int pde_index)
+// {
+//     unsigned int ptbl_entry, page_index;
+//     // iterate through each pbtl entry index
+//     for (unsigned int pte_index = 0; pte_index < 1024; pte_index++)
+//     {
+//         // get the entry that's currenty there
+//         ptbl_entry = get_ptbl_entry(proc_index, pde_index, pte_index);
+//         page_index = ptbl_entry >> 12;
+//         // don't modify it if it's not user memory
+//         if (page_index < VM_USERLO_PI || page_index >= VM_USERHI_PI)
+//         {
+//             continue;
+//         }
+
+//         KERN_DEBUG("pte - page_index: %u, ptbl_entry: %u\n", page_index, ptbl_entry);
+
+//         // update the entry with new permissions
+//         set_ptbl_entry(proc_index, pde_index, pte_index, page_index, (PTE_P | PTE_U | PTE_COW));
+//     }
+// }

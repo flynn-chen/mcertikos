@@ -63,7 +63,7 @@ unsigned int proc_fork(void)
     unsigned int vaddr = 4026531800;
     unsigned int ptbl_1 = get_ptbl_entry_by_va(id, vaddr);
     unsigned int ptbl_2 = get_ptbl_entry_by_va(pid, vaddr);
-    KERN_DEBUG("\n\tparent entry: %u\n\tchild entry: %u\n", ptbl_1, ptbl_2);
+    KERN_DEBUG("\n\taddr: %u - 0xefffffd0\n\tparent entry: %u\n\tchild entry: %u\n", vaddr, ptbl_1, ptbl_2);
 
     if (pid < NUM_IDS)
     {
