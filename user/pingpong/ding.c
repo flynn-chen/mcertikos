@@ -1,6 +1,7 @@
 #include <proc.h>
 #include <stdio.h>
 #include <syscall.h>
+#include <types.h>
 
 int main(int argc, char **argv)
 {
@@ -14,14 +15,15 @@ int main(int argc, char **argv)
     yield();
     printf("ding: the new value at address %x: %d\n", addr, *addr);
 
-    unsigned int pid = sys_fork();
+    pid_t pid = sys_fork();
     if (pid == 0)
     {
-        printf("hello from the child\n");
+        printf("hello from child");
+        //printf("ding child: the new value at address %x: %d\n", addr, *addr);
     }
     else
     {
-        printf("hello from the parent\n");
+        printf("ding parent: the new value at address %x: %d\n", addr, *addr);
     }
     return 0;
 }

@@ -7,7 +7,7 @@ unsigned int get_curid(void);
 void set_pdir_base(unsigned int index);
 unsigned int thread_spawn(void *entry, unsigned int id,
                           unsigned int quota);
-void *memcpy(void *dst, void *src, size_t n);
+unsigned int get_ptbl_entry_by_va(unsigned int proc_index, unsigned int vaddr);
 
 #endif /* _KERN_ */
 

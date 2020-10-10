@@ -3,6 +3,13 @@
 
 #include "import.h"
 
+#define PAGESIZE 4096
+#define PDIRSIZE (PAGESIZE * 1024)
+#define VM_USERLO 0x40000000
+#define VM_USERHI 0xF0000000
+#define VM_USERLO_PDE (VM_USERLO / PDIRSIZE)
+#define VM_USERHI_PDE (VM_USERHI / PDIRSIZE)
+
 /**
  * Sets the entire page map for process 0 as the identity map.
  * Note that part of the task is already completed by pdir_init.
@@ -13,8 +20,8 @@ void pdir_init_kern(unsigned int mbi_addr)
 
     pdir_init(mbi_addr);
 
-    // set kernel's directories to identity
-    for (pde_index = 0; pde_index < 1024; pde_index++)
+    // Set identity map for user PDEs
+    for (pde_index = VM_USERLO_PDE; pde_index < VM_USERHI_PDE; pde_index++)
     {
         set_pdir_entry_identity(0, pde_index);
     }
@@ -31,24 +38,20 @@ void pdir_init_kern(unsigned int mbi_addr)
 unsigned int map_page(unsigned int proc_index, unsigned int vaddr,
                       unsigned int page_index, unsigned int perm)
 {
-    unsigned int pde_frame_address;
-    unsigned int pde = get_pdir_entry_by_va(proc_index, vaddr);
-    if (pde == 0)
+    unsigned int pde_entry = get_pdir_entry_by_va(proc_index, vaddr);
+    unsigned int pde_page_index = pde_entry >> 12;
+
+    if (pde_entry == 0)
     {
-        pde_frame_address = alloc_ptbl(proc_index, vaddr);
-        if (pde_frame_address == 0)
+        pde_page_index = alloc_ptbl(proc_index, vaddr);
+        if (pde_page_index == 0)
         {
             return MagicNumber;
         }
     }
-    else
-    {
-        pde_frame_address = pde >> 12;
-    }
 
-    // set permissions and do the mapping
     set_ptbl_entry_by_va(proc_index, vaddr, page_index, perm);
-    return pde_frame_address;
+    return pde_page_index;
 }
 
 /**
@@ -61,11 +64,10 @@ unsigned int map_page(unsigned int proc_index, unsigned int vaddr,
  */
 unsigned int unmap_page(unsigned int proc_index, unsigned int vaddr)
 {
-    unsigned int pte = get_ptbl_entry_by_va(proc_index, vaddr);
-    if (pte == 0)
+    unsigned int pte_entry = get_ptbl_entry_by_va(proc_index, vaddr);
+    if (pte_entry != 0)
     {
-        return 0;
+        rmv_ptbl_entry_by_va(proc_index, vaddr);
     }
-    rmv_ptbl_entry_by_va(proc_index, vaddr);
-    return pte;
+    return pte_entry;
 }

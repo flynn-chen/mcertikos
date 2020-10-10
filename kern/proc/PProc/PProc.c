@@ -4,6 +4,8 @@
 #include <lib/seg.h>
 #include <lib/trap.h>
 #include <lib/x86.h>
+#include <lib/syscall.h>
+#include <lib/string.h>
 
 #include <pmm/MContainer/export.h>
 #include <vmm/MPTCopy/export.h>
@@ -57,12 +59,19 @@ unsigned int proc_fork(void)
     pid = thread_spawn((void *)proc_start_user, id, quota);
 
     // copy-on-write
-    // shallow_copy_mem(id, pid);
+    shallow_copy_mem(id, pid);
+    unsigned int vaddr = 4026531800;
+    unsigned int ptbl_1 = get_ptbl_entry_by_va(id, vaddr);
+    unsigned int ptbl_2 = get_ptbl_entry_by_va(pid, vaddr);
+    KERN_DEBUG("\n\tparent entry: %u\n\tchild entry: %u\n", ptbl_1, ptbl_2);
+
     if (pid < NUM_IDS)
     {
         // copy parent's context into child's context
         memcpy((void *)(&uctx_pool[pid]), (void *)(&uctx_pool[id]), sizeof(tf_t));
-        uctx_pool[pid].regs.ebx = 0; // sets return value of child process to 0 in sys_call
+        uctx_pool[pid].regs.eax = E_SUCC; // sets the sys call error number as success
+        uctx_pool[pid].regs.ebx = 0;      // sets return value of child process to 0 in sys_call
+        // increment instruction pointer? uctx_pool[pid].eip += 1;
     }
 
     return pid;

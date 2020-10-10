@@ -1,14 +1,16 @@
 #include <lib/x86.h>
-#include <lib/debug.h>
 
 #include "import.h"
-#define VA_PDE_MASK 0xFFC00000 // 11111111110000000000000000000000
-#define VA_PTE_MASK 0x003ff000 // 00000000001111111111000000000000
+
+#define PDE_ADDR(x) (x >> 22)
+#define PTE_ADDR(x) ((x >> 12) & 0x3ff)
+
 #define PAGESIZE 4096
-#define VM_USERLO 0X40000000
+#define PDIRSIZE (PAGESIZE * 1024)
+#define VM_USERLO 0x40000000
 #define VM_USERHI 0xF0000000
-#define VM_USERLO_PI (VM_USERLO / PAGESIZE)
-#define VM_USERHI_PI (VM_USERHI / PAGESIZE)
+#define VM_USERLO_PDE (VM_USERLO / PDIRSIZE)
+#define VM_USERHI_PDE (VM_USERHI / PDIRSIZE)
 
 /**
  * For each process from id 0 to NUM_IDS - 1,
@@ -18,24 +20,16 @@
 void pdir_init(unsigned int mbi_addr)
 {
     unsigned int proc_index, pde_index;
-
     idptbl_init(mbi_addr);
 
     for (proc_index = 0; proc_index < NUM_IDS; proc_index++)
     {
         for (pde_index = 0; pde_index < 1024; pde_index++)
         {
-            // kernel space
-            // page_index = pde_index * 1024 = pde_index << 10
-            if ((pde_index << 10) < VM_USERLO_PI)
+            if ((pde_index < VM_USERLO_PDE) || (VM_USERHI_PDE <= pde_index))
             {
                 set_pdir_entry_identity(proc_index, pde_index);
             }
-            else if ((pde_index << 10) >= VM_USERHI_PI)
-            {
-                set_pdir_entry_identity(proc_index, pde_index);
-            }
-            // normal user space
             else
             {
                 rmv_pdir_entry(proc_index, pde_index);
@@ -53,9 +47,10 @@ void pdir_init(unsigned int mbi_addr)
  */
 unsigned int alloc_ptbl(unsigned int proc_index, unsigned int vaddr)
 {
-    // note for Keaton: This is allocating a pdir_entry (aka a page table) and
-    // putting it into the page directory
     unsigned int page_index = container_alloc(proc_index);
+    unsigned int pde_index = PDE_ADDR(vaddr);
+    unsigned int pte_index;
+
     if (page_index == 0)
     {
         return 0;
@@ -63,13 +58,13 @@ unsigned int alloc_ptbl(unsigned int proc_index, unsigned int vaddr)
     else
     {
         set_pdir_entry_by_va(proc_index, vaddr, page_index);
-        unsigned int pde_index = (vaddr & VA_PDE_MASK) >> 22;
-        for (unsigned int pte_index = 0; pte_index < 1024; pte_index++)
+        for (pte_index = 0; pte_index < 1024; pte_index++)
         {
             rmv_ptbl_entry(proc_index, pde_index, pte_index);
         }
+
+        return page_index;
     }
-    return page_index;
 }
 
 // Reverse operation of alloc_ptbl.
@@ -77,12 +72,8 @@ unsigned int alloc_ptbl(unsigned int proc_index, unsigned int vaddr)
 // and frees the page for the page table entries (with container_free).
 void free_ptbl(unsigned int proc_index, unsigned int vaddr)
 {
-    unsigned int pde = get_pdir_entry_by_va(proc_index, vaddr);
-    if ((pde & 1) != 1)
-    {
-        return;
-    }
-    unsigned int page_index = pde >> 12;
+    unsigned int page_index = get_pdir_entry_by_va(proc_index, vaddr) >> 12;
+
+    rmv_pdir_entry(proc_index, PDE_ADDR(vaddr));
     container_free(proc_index, page_index);
-    rmv_pdir_entry_by_va(proc_index, vaddr);
 }

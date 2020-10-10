@@ -5,10 +5,10 @@
 #define PDE_ADDR(x) (x >> 22)
 #define PTE_ADDR(x) ((x >> 12) & 0x3ff)
 
-#define PAGESIZE      4096
-#define PDIRSIZE      (PAGESIZE * 1024)
-#define VM_USERLO     0x40000000
-#define VM_USERHI     0xF0000000
+#define PAGESIZE 4096
+#define PDIRSIZE (PAGESIZE * 1024)
+#define VM_USERLO 0x40000000
+#define VM_USERHI 0xF0000000
 #define VM_USERLO_PDE (VM_USERLO / PDIRSIZE)
 #define VM_USERHI_PDE (VM_USERHI / PDIRSIZE)
 
@@ -20,9 +20,12 @@
 unsigned int get_ptbl_entry_by_va(unsigned int proc_index, unsigned int vaddr)
 {
     unsigned int pde_index = PDE_ADDR(vaddr);
-    if (get_pdir_entry(proc_index, pde_index) != 0) {
+    if (get_pdir_entry(proc_index, pde_index) != 0)
+    {
         return get_ptbl_entry(proc_index, pde_index, PTE_ADDR(vaddr));
-    } else {
+    }
+    else
+    {
         return 0;
     }
 }
@@ -37,7 +40,8 @@ unsigned int get_pdir_entry_by_va(unsigned int proc_index, unsigned int vaddr)
 void rmv_ptbl_entry_by_va(unsigned int proc_index, unsigned int vaddr)
 {
     unsigned int pde_index = PDE_ADDR(vaddr);
-    if (get_pdir_entry(proc_index, pde_index) != 0) {
+    if (get_pdir_entry(proc_index, pde_index) != 0)
+    {
         rmv_ptbl_entry(proc_index, pde_index, PTE_ADDR(vaddr));
     }
 }
@@ -72,16 +76,21 @@ void idptbl_init(unsigned int mbi_addr)
     container_init(mbi_addr);
 
     // Set up IDPTbl
-    for (pde_index = 0; pde_index < 1024; pde_index++) {
-        if ((pde_index < VM_USERLO_PDE) || (VM_USERHI_PDE <= pde_index)) {
+    for (pde_index = 0; pde_index < 1024; pde_index++)
+    {
+        if ((pde_index < VM_USERLO_PDE) || (VM_USERHI_PDE <= pde_index))
+        {
             // kernel mapping
             perm = PTE_P | PTE_W | PTE_G;
-        } else {
+        }
+        else
+        {
             // normal memory
             perm = PTE_P | PTE_W;
         }
 
-        for (pte_index = 0; pte_index < 1024; pte_index++) {
+        for (pte_index = 0; pte_index < 1024; pte_index++)
+        {
             set_ptbl_entry_identity(pde_index, pte_index, perm);
         }
     }

@@ -4,10 +4,10 @@
 
 #include "import.h"
 
-#define PT_PERM_UP  0
+#define PT_PERM_UP 0
 #define PT_PERM_PTU (PTE_P | PTE_W | PTE_U)
 
-#define ADDR_MASK(x) ((unsigned int) x & 0xfffff000)
+#define ADDR_MASK(x) ((unsigned int)x & 0xfffff000)
 
 /**
  * Page directory pool for NUM_IDS processes.
@@ -38,7 +38,7 @@ void set_pdir_base(unsigned int index)
 // This can be used to test whether the page directory entry is mapped.
 unsigned int get_pdir_entry(unsigned int proc_index, unsigned int pde_index)
 {
-    return (unsigned int) PDirPool[proc_index][pde_index];
+    return (unsigned int)PDirPool[proc_index][pde_index];
 }
 
 // Sets the specified page directory entry with the start address of physical
@@ -48,7 +48,7 @@ void set_pdir_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int page_index)
 {
     unsigned int addr = page_index << 12;
-    PDirPool[proc_index][pde_index] = (unsigned int *) (addr | PT_PERM_PTU);
+    PDirPool[proc_index][pde_index] = (unsigned int *)(addr | PT_PERM_PTU);
 }
 
 // Sets the page directory entry # [pde_index] for the process # [proc_index]
@@ -57,15 +57,15 @@ void set_pdir_entry(unsigned int proc_index, unsigned int pde_index,
 // This will be used to map a page directory entry to an identity page table.
 void set_pdir_entry_identity(unsigned int proc_index, unsigned int pde_index)
 {
-    unsigned int addr = (unsigned int) IDPTbl[pde_index];
-    PDirPool[proc_index][pde_index] = (unsigned int *) (addr | PT_PERM_PTU);
+    unsigned int addr = (unsigned int)IDPTbl[pde_index];
+    PDirPool[proc_index][pde_index] = (unsigned int *)(addr | PT_PERM_PTU);
 }
 
 // Removes the specified page directory entry (sets the page directory entry to 0).
 // Don't forget to cast the value to (unsigned int *).
 void rmv_pdir_entry(unsigned int proc_index, unsigned int pde_index)
 {
-    PDirPool[proc_index][pde_index] = (unsigned int *) 0;
+    PDirPool[proc_index][pde_index] = (unsigned int *)0;
 }
 
 // Returns the specified page table entry.
@@ -73,7 +73,7 @@ void rmv_pdir_entry(unsigned int proc_index, unsigned int pde_index)
 unsigned int get_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                             unsigned int pte_index)
 {
-    unsigned int *pt = (unsigned int *) ADDR_MASK(PDirPool[proc_index][pde_index]);
+    unsigned int *pt = (unsigned int *)ADDR_MASK(PDirPool[proc_index][pde_index]);
     return pt[pte_index];
 }
 
@@ -83,7 +83,7 @@ void set_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int pte_index, unsigned int page_index,
                     unsigned int perm)
 {
-    unsigned int *pt = (unsigned int *) ADDR_MASK(PDirPool[proc_index][pde_index]);
+    unsigned int *pt = (unsigned int *)ADDR_MASK(PDirPool[proc_index][pde_index]);
     pt[pte_index] = (page_index << 12) | perm;
 }
 
@@ -100,6 +100,6 @@ void set_ptbl_entry_identity(unsigned int pde_index, unsigned int pte_index,
 void rmv_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int pte_index)
 {
-    unsigned int *pt = (unsigned int *) ADDR_MASK(PDirPool[proc_index][pde_index]);
+    unsigned int *pt = (unsigned int *)ADDR_MASK(PDirPool[proc_index][pde_index]);
     pt[pte_index] = 0;
 }

@@ -21,17 +21,25 @@ static struct SContainer CONTAINER[NUM_IDS];
 void container_init(unsigned int mbi_addr)
 {
     unsigned int real_quota;
-    unsigned int i;
+    unsigned int nps, idx;
 
     pmem_init(mbi_addr);
     real_quota = 0;
 
-    for (i = 0; i < get_nps(); i++)
+    /**
+     * Compute the available quota and store it into the variable real_quota.
+     * It should be the number of the unallocated pages with the normal permission
+     * in the physical memory allocation table.
+     */
+    nps = get_nps();
+    idx = 1;
+    while (idx < nps)
     {
-        if (at_is_allocated(i) == 0 && at_is_norm(i) == 1)
+        if (at_is_norm(idx) && !at_is_allocated(idx))
         {
             real_quota++;
         }
+        idx++;
     }
 
     KERN_DEBUG("\nreal quota: %d\n\n", real_quota);
@@ -71,11 +79,7 @@ unsigned int container_get_usage(unsigned int id)
 // [n] pages of memory. If so, returns 1, otherwise, returns 0.
 unsigned int container_can_consume(unsigned int id, unsigned int n)
 {
-    if (CONTAINER[id].quota - CONTAINER[id].usage >= n)
-    {
-        return 1;
-    }
-    return 0;
+    return CONTAINER[id].usage + n <= CONTAINER[id].quota;
 }
 
 /**
@@ -96,14 +100,17 @@ unsigned int container_split(unsigned int id, unsigned int quota)
         return NUM_IDS;
     }
 
-    CONTAINER[id].usage += quota;
-    CONTAINER[id].nchildren++;
-
-    CONTAINER[child].parent = id;
+    /**
+     * Update the container structure of both parent and child process appropriately.
+     */
+    CONTAINER[child].used = 1;
     CONTAINER[child].quota = quota;
     CONTAINER[child].usage = 0;
+    CONTAINER[child].parent = id;
     CONTAINER[child].nchildren = 0;
-    CONTAINER[child].used = 1;
+
+    CONTAINER[id].usage += quota;
+    CONTAINER[id].nchildren++;
 
     return child;
 }
@@ -115,20 +122,26 @@ unsigned int container_split(unsigned int id, unsigned int quota)
  */
 unsigned int container_alloc(unsigned int id)
 {
-    if (CONTAINER[id].usage < CONTAINER[id].quota)
+    if (CONTAINER[id].usage + 1 <= CONTAINER[id].quota)
     {
         CONTAINER[id].usage++;
         return palloc();
     }
-    return 0;
+    else
+    {
+        return 0;
+    }
 }
 
 // Frees the physical page and reduces the usage by 1.
 void container_free(unsigned int id, unsigned int page_index)
 {
-    if (CONTAINER[id].usage > 0)
+    if (at_is_allocated(page_index))
     {
         pfree(page_index);
-        CONTAINER[id].usage--;
+        if (CONTAINER[id].usage > 0)
+        {
+            CONTAINER[id].usage--;
+        }
     }
 }

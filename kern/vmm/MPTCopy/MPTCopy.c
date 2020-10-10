@@ -1,6 +1,7 @@
 #include <lib/gcc.h>
 #include <lib/x86.h>
 #include <lib/debug.h>
+#include <lib/string.h>
 
 #include "import.h"
 #include <pmm/MContainer/export.h>
@@ -46,10 +47,12 @@ void shallow_copy_mem(unsigned int from_pid, unsigned int to_pid)
         // point to the same addr space
         pde_val = get_pdir_entry(from_pid, pde_index);
         page_index = pde_val >> 12;
-        if (page_index < VM_USERLO_PI || VM_USERHI_PI >= page_index)
+        if (page_index < VM_USERLO_PI || page_index >= VM_USERHI_PI)
         {
             continue;
         }
+
+        // KERN_DEBUG("pde - page_index: %u, pde_val: %u\n", page_index, pde_val);
 
         // point to the same page index for the page directory entry
         set_pdir_entry(to_pid, pde_index, page_index);
@@ -69,12 +72,15 @@ void update_perm_ptbl(unsigned int proc_index, unsigned int pde_index)
         ptbl_entry = get_ptbl_entry(proc_index, pde_index, pte_index);
         page_index = ptbl_entry >> 12;
         // don't modify it if it's not user memory
-        if (page_index < VM_USERLO_PI || VM_USERHI_PI >= page_index)
+        if (page_index < VM_USERLO_PI || page_index >= VM_USERHI_PI)
         {
             continue;
         }
+
+        // KERN_DEBUG("pte - page_index: %u, ptbl_entry: %u\n", page_index, ptbl_entry);
+
         // update the entry with new permissions
-        set_ptbl_entry(proc_index, pde_index, pte_index, page_index, (PTE_P & PTE_COW));
+        set_ptbl_entry(proc_index, pde_index, pte_index, page_index, (PTE_P | PTE_U | PTE_COW));
     }
 }
 
@@ -90,10 +96,7 @@ void deep_copy_mem(unsigned int id, unsigned int vaddr)
     // copy old contents to new page
     unsigned int to_frame_address = page_index << 12;
     unsigned int from_frame_address = ptbl_entry & ~(0x00000fff);
-    for (unsigned int i = 0; i < PAGESIZE; i++)
-    {
-        (*((unsigned int *)(to_frame_address + i))) = (char)(*((unsigned int *)(from_frame_address + i)));
-    }
+    memcpy((void *)to_frame_address, (void *)from_frame_address, PAGESIZE);
 
     // update the mapping with the new page and permissions
     set_ptbl_entry_by_va(id, vaddr, page_index, PT_PERM_PTU);
