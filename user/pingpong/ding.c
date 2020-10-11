@@ -19,7 +19,7 @@ int main(int argc, char **argv)
     if (pid == 0)
     {
         printf("hello from child\n");
-        printf("ding child: the shallo copy value at address %x: %d\n", addr, *addr);
+        printf("ding child: the shallow copy value at address %x: %d\n", addr, *addr);
         *addr = val + 1;
         printf("ding child: the deep copy value at address %x: %d\n", addr, *addr);
     }
