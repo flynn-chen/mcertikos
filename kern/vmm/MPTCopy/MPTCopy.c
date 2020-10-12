@@ -19,25 +19,6 @@
 #define VM_USERHI 0xF0000000
 #define VM_USERLO_PI (VM_USERLO / PAGESIZE)
 #define VM_USERHI_PI (VM_USERHI / PAGESIZE)
-/*
-void set_pdir_base(unsigned int index);
-unsigned int get_pdir_entry(unsigned int proc_index, unsigned int pde_index);
-void set_pdir_entry(unsigned int proc_index, unsigned int pde_index,
-                    unsigned int page_index);
-void set_pdir_entry_identity(unsigned int proc_index, unsigned int pde_index);
-void rmv_pdir_entry(unsigned int proc_index, unsigned int pde_index);
-unsigned int get_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
-                            unsigned int pte_index);
-void set_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
-                    unsigned int pte_index, unsigned int page_index,
-                    unsigned int perm);
-void set_ptbl_entry_identity(unsigned int pde_index, unsigned int pte_index,
-                             unsigned int perm);
-void rmv_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
-                    unsigned int pte_index);
-*/
-
-// void update_perm_ptbl(unsigned int proc_index, unsigned int pde_index);
 
 void shallow_copy_mem(unsigned int from_pid, unsigned int to_pid)
 {
@@ -64,6 +45,7 @@ void shallow_copy_mem(unsigned int from_pid, unsigned int to_pid)
 void deep_copy_mem(unsigned int id, unsigned int vaddr)
 {
     unsigned int ptbl_entry = get_ptbl_entry_by_va(id, vaddr);
+    rmv_ptbl_entry_by_va(id, vaddr);
     unsigned int page_index = container_alloc(id); // allocate new page
     if (page_index == 0)
     {
@@ -76,29 +58,5 @@ void deep_copy_mem(unsigned int id, unsigned int vaddr)
     memcpy((void *)to_frame_address, (void *)from_frame_address, PAGESIZE);
 
     // update the mapping with the new page and permissions
-    // map_page(id, vaddr, page_index, PT_PERM_PTU);
-    set_pdir_entry_by_va(id, vaddr, page_index);
-    set_ptbl_entry_by_va(id, vaddr, page_index, PT_PERM_PTU);
+    map_page(id, vaddr, page_index, PT_PERM_PTU);
 }
-
-// void update_perm_ptbl(unsigned int proc_index, unsigned int pde_index)
-// {
-//     unsigned int ptbl_entry, page_index;
-//     // iterate through each pbtl entry index
-//     for (unsigned int pte_index = 0; pte_index < 1024; pte_index++)
-//     {
-//         // get the entry that's currenty there
-//         ptbl_entry = get_ptbl_entry(proc_index, pde_index, pte_index);
-//         page_index = ptbl_entry >> 12;
-//         // don't modify it if it's not user memory
-//         if (page_index < VM_USERLO_PI || page_index >= VM_USERHI_PI)
-//         {
-//             continue;
-//         }
-
-//         KERN_DEBUG("pte - page_index: %u, ptbl_entry: %u\n", page_index, ptbl_entry);
-
-//         // update the entry with new permissions
-//         set_ptbl_entry(proc_index, pde_index, pte_index, page_index, (PTE_P | PTE_U | PTE_COW));
-//     }
-// }

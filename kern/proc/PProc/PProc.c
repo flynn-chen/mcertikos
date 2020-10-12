@@ -60,10 +60,6 @@ unsigned int proc_fork(void)
 
     // copy-on-write
     shallow_copy_mem(id, pid);
-    unsigned int vaddr = 4026531800;
-    unsigned int ptbl_1 = get_ptbl_entry_by_va(id, vaddr);
-    unsigned int ptbl_2 = get_ptbl_entry_by_va(pid, vaddr);
-    KERN_DEBUG("\n\taddr: %u - 0xefffffd0\n\tparent entry: %u\n\tchild entry: %u\n", vaddr, ptbl_1, ptbl_2);
 
     if (pid < NUM_IDS)
     {
@@ -71,8 +67,7 @@ unsigned int proc_fork(void)
         memcpy((void *)(&uctx_pool[pid]), (void *)(&uctx_pool[id]), sizeof(tf_t));
         uctx_pool[pid].regs.eax = E_SUCC; // sets the sys call error number as success
         uctx_pool[pid].regs.ebx = 0;      // sets return value of child process to 0 in sys_call
-        // increment instruction pointer? uctx_pool[pid].eip += 1;
     }
-
+    // KERN_DEBUG("finishing proc_fork\n");
     return pid;
 }

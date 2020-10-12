@@ -45,8 +45,6 @@ unsigned int kctx_new(void *entry, unsigned int id, unsigned int quota)
     {
         return child_id;
     }
-    // STACK_LOC[child_id] = &STACK_LOC[child_id][0] (low address)
-    // &STACK_LOC[child_id][PAGESIZE - 1] (high address)
     kctx_set_esp(child_id, &STACK_LOC[child_id][PAGESIZE - 1]);
     kctx_set_eip(child_id, entry);
     return child_id;
