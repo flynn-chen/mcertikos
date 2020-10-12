@@ -9,7 +9,7 @@ int main(int argc, char **argv)
 {
     pid_t pid;
 
-    printf("starting fork test with global at %u\n", &global_test);
+    printf("starting fork test with global at %p\n", &global_test);
 
     pid = sys_fork();
 

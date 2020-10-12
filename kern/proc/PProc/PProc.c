@@ -55,19 +55,26 @@ unsigned int proc_fork(void)
     id = get_curid();
     quota = container_get_quota(id) / 2;
 
+    // if this process doesn't have enough memory for a child, return
+    if (quota == 0)
+    {
+        return NUM_IDS;
+    }
+
     // create a new child of id with half the quota
     pid = thread_spawn((void *)proc_start_user, id, quota);
+    if (pid == NUM_IDS)
+    {
+        return pid;
+    }
 
     // copy-on-write
     shallow_copy_mem(id, pid);
 
-    if (pid < NUM_IDS)
-    {
-        // copy parent's context into child's context
-        memcpy((void *)(&uctx_pool[pid]), (void *)(&uctx_pool[id]), sizeof(tf_t));
-        uctx_pool[pid].regs.eax = E_SUCC; // sets the sys call error number as success
-        uctx_pool[pid].regs.ebx = 0;      // sets return value of child process to 0 in sys_call
-    }
-    // KERN_DEBUG("finishing proc_fork\n");
+    // copy parent's context into child's context
+    memcpy((void *)(&uctx_pool[pid]), (void *)(&uctx_pool[id]), sizeof(tf_t));
+    uctx_pool[pid].regs.eax = E_SUCC; // sets the sys call error number as success
+    uctx_pool[pid].regs.ebx = 0;      // sets return value of child process to 0 in sys_call
+
     return pid;
 }
