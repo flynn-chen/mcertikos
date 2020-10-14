@@ -53,7 +53,7 @@ unsigned int proc_fork(void)
 
     // get current id (of parent) and calculate quota for child
     id = get_curid();
-    quota = container_get_quota(id) / 2;
+    quota = (container_get_quota(id) - container_get_usage(id)) / 2;
 
     // if this process doesn't have enough memory for a child, return
     if (quota == 0)

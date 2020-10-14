@@ -46,6 +46,7 @@ void deep_copy_mem(unsigned int id, unsigned int vaddr)
     unsigned int ptbl_entry = get_ptbl_entry_by_va(id, vaddr);
     rmv_ptbl_entry_by_va(id, vaddr);
     unsigned int page_index = container_alloc(id); // allocate new page
+
     if (page_index == 0)
     {
         return;

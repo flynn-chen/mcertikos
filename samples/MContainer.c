@@ -2,12 +2,13 @@
 #include <lib/x86.h>
 #include "import.h"
 
-struct SContainer {
-    int quota;      // maximum memory quota of the process
-    int usage;      // the current memory usage of the process
-    int parent;     // the id of the parent process
-    int nchildren;  // the number of child processes
-    int used;       // whether current container is used by a process
+struct SContainer
+{
+    int quota;     // maximum memory quota of the process
+    int usage;     // the current memory usage of the process
+    int parent;    // the id of the parent process
+    int nchildren; // the number of child processes
+    int used;      // whether current container is used by a process
 };
 
 // mCertiKOS supports up to NUM_IDS processes
@@ -32,8 +33,10 @@ void container_init(unsigned int mbi_addr)
      */
     nps = get_nps();
     idx = 1;
-    while (idx < nps) {
-        if (at_is_norm(idx) && !at_is_allocated(idx)) {
+    while (idx < nps)
+    {
+        if (at_is_norm(idx) && !at_is_allocated(idx))
+        {
             real_quota++;
         }
         idx++;
@@ -90,9 +93,10 @@ unsigned int container_split(unsigned int id, unsigned int quota)
     unsigned int child, nc;
 
     nc = CONTAINER[id].nchildren;
-    child = id * MAX_CHILDREN + 1 + nc;  // container index for the child process
+    child = id * MAX_CHILDREN + 1 + nc; // container index for the child process
 
-    if (NUM_IDS <= child) {
+    if (NUM_IDS <= child)
+    {
         return NUM_IDS;
     }
 
@@ -118,10 +122,13 @@ unsigned int container_split(unsigned int id, unsigned int quota)
  */
 unsigned int container_alloc(unsigned int id)
 {
-    if (CONTAINER[id].usage + 1 <= CONTAINER[id].quota) {
+    if (CONTAINER[id].usage + 1 <= CONTAINER[id].quota)
+    {
         CONTAINER[id].usage++;
         return palloc();
-    } else {
+    }
+    else
+    {
         return 0;
     }
 }
@@ -129,9 +136,11 @@ unsigned int container_alloc(unsigned int id)
 // Frees the physical page and reduces the usage by 1.
 void container_free(unsigned int id, unsigned int page_index)
 {
-    if (at_is_allocated(page_index)) {
+    if (at_is_allocated(page_index))
+    {
         pfree(page_index);
-        if (CONTAINER[id].usage > 0) {
+        if (CONTAINER[id].usage > 0)
+        {
             CONTAINER[id].usage--;
         }
     }

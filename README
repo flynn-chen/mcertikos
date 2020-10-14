@@ -9,6 +9,75 @@ To use sample lab 1 solutions: copy files in samples/ to appropriate directories
 
 List here the following info:
 1. who you have worked with
+
+Keaton Mueller (kim6) and Flynn Chen (zc264).
+
 2. whether you coded this assignment together, and if not, who worked on which part
+
+We coded the assignment together.
+
 3. brief description of what you have implemented
+
+PKCtxIntro Layer
+    - we implemented the context switch code in assembly by storing the value of 
+    registers into the kernel context pool data structure for the old kernel context
+    and loading the value of the new kernel context from the kctx_pool into the registers
+
+PKCtxNew Layer
+    - we implemented kctx_new by allocating a new process and setting up the instruction and 
+    stack pointers for that kernel context
+
+PTCBInit Layer
+    - we initialized NUM_IDS threads by calling the tcb_init_at_id function
+
+PTQueueInit Layer
+    - we implemented doubly linked list functionalities
+        - tqueue_init: we initialized all the queues for each threads
+        - tqueue_enqueue: setting the number corresponding to the previous
+        and next thread in the doubly linked list to add a new item depending
+        on the current situation of the kernel. 
+        - tqueue_dequeue: setting the number corresponding to the previous
+        and next thread in the doubly linked list to pop an item depending
+        on the current situation of the kernel. 
+        - tqueue_remove: setting the number corresponding to the previous
+        and next thread in the doubly linked list to remove an item depending
+        on the current situation of the kernel. 
+
+PThread Layer
+    - thread_spawn: we spawn a new thread by adding a new kernel context, 
+    setting the tcb state to ready, and add the thread into the thread queue
+    - thread_yield: we set the current thread to ready state, put the current thread 
+    on ready queue, pop off the next thread from the ready queue, and set the state to
+    running, then switch to the next thread.
+
+TSyscallArg Layer
+    - we wrote functions to obtain the system call argument and return value from the
+    registers when the user calls or kernel returns from a system call function.
+
+TSyscall Layer
+    - sys_spawn: we spawn a process with proc_create to run the user processes, and set
+    the corresponding error number and return value from the 
+    - sys_yield: we call thread_yield function to let another thread run from the 
+    ready queue.
+
+TTrapHandler Layer
+    - for both functions, we obtained the trap number from the current process. For exceptions,
+    we check for page faults. For interrupts, we check for timer and spurious interrupts. Otherwise,
+    they are handled by default handlers. 
+
+MPTCopy
+    - we implemented fork by adding a new layer in the virtual memmory management section, called MPTCopy.
+    In addition, we also added prok_fork in PProc.c, similar to proc_create; and sys_fork in TSyscall.c, similar
+    to sys_create. 
+        - for shallow copy, we iterate through the virtual address space in the parent pid, and map each page 
+        in the parent and child process with COW, read-only permissions. 
+        - for deep copy, we map the virtual address that triggered a page fault onto a new page and copying contents
+        of that page onto the new allocated page, then setting write permissions for the new page. 
+        - for proc_fork, we create a new process, shallow copy the page, then also copying over the user context from
+        the parent to the child.
+        - if a process writes to a page, it will trigger deep copy, which maps the physical page underlying that 
+        virtual address to another physical page. The new physical page should have the same content from deep copy.
+
 4. and anything else you would like us to know
+
+None. 
