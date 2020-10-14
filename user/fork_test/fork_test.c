@@ -7,7 +7,7 @@ uint32_t global_test = 0x12345678;
 
 int main(int argc, char **argv)
 {
-    pid_t pid;
+    int pid;
 
     printf("starting fork test with global at %p\n", &global_test);
 
@@ -26,6 +26,17 @@ int main(int argc, char **argv)
             printf("Grandchild 1, global (0x1111) = %p\n", global_test);
             global_test = 0x2222;
             printf("Grandchild 1, change global = %p\n", global_test);
+
+            pid = sys_fork();
+            printf("expected fork failure: %d\n", pid);
+            if (pid == -1)
+            {
+                printf("Great-Granchild's id was (expected fork failure) %d\n", pid);
+            }
+            else
+            {
+                printf("This shouldn't happen (fork should've failed)\n");
+            }
             return 0;
         }
         else
@@ -51,12 +62,44 @@ int main(int argc, char **argv)
             global_test = 0x5555;
             printf("Child post fork 2, change global = %p\n", global_test);
         }
+
+        pid = sys_fork();
+        if (pid == 0)
+        {
+            printf("Grandchild 3, global (0x5555) = %p\n", global_test);
+            global_test = 0x6666;
+            printf("Grandchild 3, change global = %p\n", global_test);
+            return 0;
+        }
+        else
+        {
+            printf("Child forked new process %d\n", pid);
+            printf("Child post fork 2, global (0x5555) = %p\n", global_test);
+            global_test = 0x7777;
+            printf("Child post fork 2, change global = %p\n", global_test);
+        }
+
+        pid = sys_fork();
+        if (pid == 0)
+        {
+            printf("Grandchild 4, global (0x7777) = %p\n", global_test);
+            global_test = 0x8888;
+            printf("Grandchild 4, change global = %p\n", global_test);
+            return 0;
+        }
+        else
+        {
+            printf("Child forked new process %d\n", pid);
+            printf("Child post fork 4, global (0x7777) = %p\n", global_test);
+            global_test = 0x9999;
+            printf("Child post fork 4, change global = %p\n", global_test);
+        }
     }
     else
     {
         printf("Parent forked new process %d\n", pid);
         printf("Parent post fork, global (0x12345678) = %p\n", global_test);
-        global_test = 0x6666;
+        global_test = 0xAAAA;
         printf("Parent post fork, change global = %p\n", global_test);
     }
 

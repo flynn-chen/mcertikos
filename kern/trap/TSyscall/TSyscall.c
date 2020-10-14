@@ -141,5 +141,6 @@ void sys_fork(void)
     else
     {
         syscall_set_errno(E_INVAL_PID);
+        syscall_set_retval1((unsigned int)-1);
     }
 }

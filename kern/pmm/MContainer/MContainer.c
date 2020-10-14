@@ -95,6 +95,9 @@ unsigned int container_split(unsigned int id, unsigned int quota)
     nc = CONTAINER[id].nchildren;
     child = id * MAX_CHILDREN + 1 + nc; // container index for the child process
 
+    // 1 -> 4, 5, 6
+    // 2 -> 7, 8, 9
+
     if (NUM_IDS <= child)
     {
         return NUM_IDS;
