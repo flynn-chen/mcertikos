@@ -8,6 +8,7 @@ unsigned int thread_spawn(void *entry, unsigned int id,
                           unsigned int quota);
 void thread_yield(void);
 void sched_update(void);
+unsigned int previous_id(void);
 
 #endif /* _KERN_ */
 

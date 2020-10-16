@@ -65,13 +65,14 @@ void thread_yield(void)
     // we could be interrupted by the timer - though only once
     spinlock_acquire(&cpu_lock[get_pcpu_idx()]);
 
+    prev_id[get_pcpu_idx()] = old_cur_pid;
+
     tcb_set_state(old_cur_pid, TSTATE_READY);
     tqueue_enqueue(NUM_IDS + get_pcpu_idx(), old_cur_pid);
 
     new_cur_pid = tqueue_dequeue(NUM_IDS + get_pcpu_idx());
     tcb_set_state(new_cur_pid, TSTATE_RUN);
     set_curid(new_cur_pid);
-    prev_id[get_pcpu_idx()] = new_cur_pid;
 
     spinlock_release(&cpu_lock[get_pcpu_idx()]);
     if (old_cur_pid != new_cur_pid)
