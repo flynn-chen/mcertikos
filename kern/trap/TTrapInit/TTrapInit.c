@@ -4,9 +4,11 @@
 #include <dev/intr.h>
 #include "import.h"
 
-#define KERN_INFO_CPU(str, idx) \
-    if (idx == 0) KERN_INFO("[BSP KERN] " str); \
-    else KERN_INFO("[AP%d KERN] " str, idx);
+#define KERN_INFO_CPU(str, idx)       \
+    if (idx == 0)                     \
+        KERN_INFO("[BSP KERN] " str); \
+    else                              \
+        KERN_INFO("[AP%d KERN] " str, idx);
 
 int inited = FALSE;
 
@@ -30,7 +32,8 @@ void trap_handler_register(int cpu_idx, int trapno, trap_cb_t cb)
 
 void trap_init(unsigned int cpu_idx)
 {
-    if (cpu_idx == 0) {
+    if (cpu_idx == 0)
+    {
         trap_init_array();
     }
 
@@ -38,6 +41,24 @@ void trap_init(unsigned int cpu_idx)
 
     // TODO: for CPU # [cpu_idx], register appropriate trap handler for each trap number,
     // with trap_handler_register function defined above.
+    for (unsigned int trapno = 0; trapno < 256; trapno++)
+    {
+        // exception
+        if (T_DIVIDE <= trapno && trapno <= T_SECEV)
+        {
+            trap_handler_register(cpu_idx, trapno, &exception_handler);
+        }
+        // interrupt
+        else if (T_IRQ0 + IRQ_TIMER <= trapno && trapno <= T_IRQ0 + IRQ_IDE2)
+        {
+            trap_handler_register(cpu_idx, trapno, &interrupt_handler);
+        }
+        // syscall dispatch
+        else if (trapno == T_SYSCALL)
+        {
+            trap_handler_register(cpu_idx, trapno, &syscall_dispatch);
+        }
+    }
 
     KERN_INFO_CPU("Done.\n", cpu_idx);
     KERN_INFO_CPU("Enabling interrupts...\n", cpu_idx);

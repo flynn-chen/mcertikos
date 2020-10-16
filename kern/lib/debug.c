@@ -6,8 +6,13 @@
 #include <lib/types.h>
 #include <lib/spinlock.h>
 
+spinlock_t debug_print_lock;
+spinlock_t debug_trace_lock;
+
 void debug_init(void)
 {
+    spinlock_init(&debug_print_lock);
+    spinlock_init(&debug_trace_lock);
 }
 
 extern int vdprintf(const char *fmt, va_list ap);
@@ -39,11 +44,12 @@ void debug_normal(const char *file, int line, const char *fmt, ...)
 static void debug_trace(uintptr_t ebp, uintptr_t *eips)
 {
     int i;
-    uintptr_t *frame = (uintptr_t *) ebp;
+    uintptr_t *frame = (uintptr_t *)ebp;
 
-    for (i = 0; i < DEBUG_TRACEFRAMES && frame; i++) {
-        eips[i] = frame[1];              /* saved %eip */
-        frame = (uintptr_t *) frame[0];  /* saved %ebp */
+    for (i = 0; i < DEBUG_TRACEFRAMES && frame; i++)
+    {
+        eips[i] = frame[1];            /* saved %eip */
+        frame = (uintptr_t *)frame[0]; /* saved %ebp */
     }
     for (; i < DEBUG_TRACEFRAMES; i++)
         eips[i] = 0;
@@ -80,4 +86,4 @@ void debug_warn(const char *file, int line, const char *fmt, ...)
     va_end(ap);
 }
 
-#endif  /* DEBUG_MSG */
+#endif /* DEBUG_MSG */

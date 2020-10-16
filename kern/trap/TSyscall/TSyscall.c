@@ -6,6 +6,7 @@
 #include <lib/syscall.h>
 #include <dev/intr.h>
 #include <pcpu/PCPUIntro/export.h>
+#include <pmm/MContainer/export.h>
 
 #include "import.h"
 
@@ -25,7 +26,8 @@ void sys_puts(tf_t *tf)
     str_uva = syscall_get_arg2(tf);
     str_len = syscall_get_arg3(tf);
 
-    if (!(VM_USERLO <= str_uva && str_uva + str_len <= VM_USERHI)) {
+    if (!(VM_USERLO <= str_uva && str_uva + str_len <= VM_USERHI))
+    {
         syscall_set_errno(tf, E_INVAL_ADDR);
         return;
     }
@@ -33,13 +35,15 @@ void sys_puts(tf_t *tf)
     remain = str_len;
     cur_pos = str_uva;
 
-    while (remain) {
+    while (remain)
+    {
         if (remain < PAGESIZE - 1)
             nbytes = remain;
         else
             nbytes = PAGESIZE - 1;
 
-        if (pt_copyin(cur_pid, cur_pos, sys_buf[cur_pid], nbytes) != nbytes) {
+        if (pt_copyin(cur_pid, cur_pos, sys_buf[cur_pid], nbytes) != nbytes)
+        {
             syscall_set_errno(tf, E_MEM);
             return;
         }
@@ -79,13 +83,34 @@ extern uint8_t _binary___obj_user_pingpong_ding_start[];
 void sys_spawn(tf_t *tf)
 {
     unsigned int new_pid;
-    unsigned int elf_id, quota;
+    unsigned int elf_id, quota, current_pid;
     void *elf_addr;
 
     elf_id = syscall_get_arg2(tf);
     quota = syscall_get_arg3(tf);
+    current_pid = get_curid();
 
-    switch (elf_id) {
+    if (container_can_consume(current_pid, quota))
+    {
+        syscall_set_errno(tf, E_EXCEEDS_QUOTA);
+        syscall_set_retval1(tf, NUM_IDS);
+        return;
+    }
+    if (container_get_nchildren(current_pid) == MAX_CHILDREN)
+    {
+        syscall_set_errno(tf, E_MAX_NUM_CHILDEN_REACHED);
+        syscall_set_retval1(tf, NUM_IDS);
+        return;
+    }
+    if (current_pid * MAX_CHILDREN + 1 + container_get_nchildren(current_pid) > NUM_IDS)
+    {
+        syscall_set_errno(tf, E_INVAL_CHILD_ID);
+        syscall_set_retval1(tf, NUM_IDS);
+        return;
+    }
+
+    switch (elf_id)
+    {
     case 1:
         elf_addr = _binary___obj_user_pingpong_ping_start;
         break;
@@ -103,10 +128,13 @@ void sys_spawn(tf_t *tf)
 
     new_pid = proc_create(elf_addr, quota);
 
-    if (new_pid == NUM_IDS) {
+    if (new_pid == NUM_IDS)
+    {
         syscall_set_errno(tf, E_INVAL_PID);
         syscall_set_retval1(tf, NUM_IDS);
-    } else {
+    }
+    else
+    {
         syscall_set_errno(tf, E_SUCC);
         syscall_set_retval1(tf, new_pid);
     }
@@ -127,8 +155,11 @@ void sys_yield(tf_t *tf)
 void sys_produce(tf_t *tf)
 {
     unsigned int i;
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < 5; i++)
+    {
+        intr_local_disable();
         KERN_DEBUG("CPU %d: Process %d: Produced %d\n", get_pcpu_idx(), get_curid(), i);
+        intr_local_enable();
     }
     syscall_set_errno(tf, E_SUCC);
 }
@@ -136,8 +167,11 @@ void sys_produce(tf_t *tf)
 void sys_consume(tf_t *tf)
 {
     unsigned int i;
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < 5; i++)
+    {
+        intr_local_disable();
         KERN_DEBUG("CPU %d: Process %d: Consumed %d\n", get_pcpu_idx(), get_curid(), i);
+        intr_local_enable();
     }
     syscall_set_errno(tf, E_SUCC);
 }
