@@ -11,6 +11,8 @@ spinlock_t cpu_lock[NUM_CPUS];
 unsigned int ms_elapsed[NUM_CPUS];
 spinlock_t sched_update_lock[NUM_CPUS];
 
+unsigned int prev_id[NUM_CPUS];
+
 void thread_init(unsigned int mbi_addr)
 {
     for (unsigned int i = 0; i < NUM_CPUS; i++)
@@ -69,6 +71,7 @@ void thread_yield(void)
     new_cur_pid = tqueue_dequeue(NUM_IDS + get_pcpu_idx());
     tcb_set_state(new_cur_pid, TSTATE_RUN);
     set_curid(new_cur_pid);
+    prev_id[get_pcpu_idx()] = new_cur_pid;
 
     spinlock_release(&cpu_lock[get_pcpu_idx()]);
     if (old_cur_pid != new_cur_pid)
@@ -90,4 +93,9 @@ void sched_update(void)
         return;
     }
     spinlock_release(&sched_update_lock[current_cpu]);
+}
+
+unsigned int previous_id(void)
+{
+    return prev_id[get_pcpu_idx()];
 }

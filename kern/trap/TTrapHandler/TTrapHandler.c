@@ -145,7 +145,11 @@ void trap(tf_t *tf)
                   tf->trapno, cur_pid, tf->eip);
     }
 
-    kstack_switch(cur_pid);
-    set_pdir_base(cur_pid);
-    trap_return((void *)tf);
+    // check for per CPU previous_id in PThread.c
+    if (cur_pid != previous_id())
+    {
+        kstack_switch(cur_pid);
+        set_pdir_base(cur_pid);
+        trap_return((void *)tf);
+    }
 }
