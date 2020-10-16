@@ -5,16 +5,19 @@
 
 #include <lib/debug.h>
 #include <lib/stdarg.h>
+#include <lib/spinlock.h>
 
-struct dprintbuf {
-    int idx;  /* current buffer index */
-    int cnt;  /* total bytes printed so far */
+struct dprintbuf
+{
+    int idx; /* current buffer index */
+    int cnt; /* total bytes printed so far */
     char buf[CONSOLE_BUFFER_SIZE];
 };
 
 static void cputs(const char *str)
 {
-    while (*str) {
+    while (*str)
+    {
         cons_putc(*str);
         str += 1;
     }
@@ -23,7 +26,8 @@ static void cputs(const char *str)
 static void putch(int ch, struct dprintbuf *b)
 {
     b->buf[b->idx++] = ch;
-    if (b->idx == CONSOLE_BUFFER_SIZE - 1) {
+    if (b->idx == CONSOLE_BUFFER_SIZE - 1)
+    {
         b->buf[b->idx] = 0;
         cputs(b->buf);
         b->idx = 0;
@@ -37,7 +41,7 @@ int vdprintf(const char *fmt, va_list ap)
 
     b.idx = 0;
     b.cnt = 0;
-    vprintfmt((void *) putch, &b, fmt, ap);
+    vprintfmt((void *)putch, &b, fmt, ap);
 
     b.buf[b.idx] = 0;
     cputs(b.buf);
@@ -47,6 +51,7 @@ int vdprintf(const char *fmt, va_list ap)
 
 int dprintf(const char *fmt, ...)
 {
+    spinlock_acquire(&print_lock);
     va_list ap;
     int cnt;
 
@@ -54,7 +59,8 @@ int dprintf(const char *fmt, ...)
     cnt = vdprintf(fmt, ap);
     va_end(ap);
 
+    spinlock_release(&print_lock);
     return cnt;
 }
 
-#endif  /* DEBUG_MSG */
+#endif /* DEBUG_MSG */

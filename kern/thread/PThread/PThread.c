@@ -7,8 +7,17 @@
 
 #include "import.h"
 
+spinlock_t cpu_lock[NUM_CPUS];
+unsigned int ms_elapsed[NUM_CPUS];
+spinlock_t sched_update_lock[NUM_CPUS];
+
 void thread_init(unsigned int mbi_addr)
 {
+    for (unsigned int i = 0; i < NUM_CPUS; i++)
+    {
+        spinlock_init(&cpu_lock[i]);
+        spinlock_init(&sched_update_lock[NUM_CPUS]);
+    }
     tqueue_init(mbi_addr);
     set_curid(0);
     tcb_set_state(0, TSTATE_RUN);
@@ -21,12 +30,15 @@ void thread_init(unsigned int mbi_addr)
  */
 unsigned int thread_spawn(void *entry, unsigned int id, unsigned int quota)
 {
+    spinlock_acquire(&cpu_lock[get_pcpu_idx()]);
     unsigned int pid = kctx_new(entry, id, quota);
-    if (pid != NUM_IDS) {
+    if (pid != NUM_IDS)
+    {
         tcb_set_cpu(pid, get_pcpu_idx());
         tcb_set_state(pid, TSTATE_READY);
         tqueue_enqueue(NUM_IDS + get_pcpu_idx(), pid);
     }
+    spinlock_release(&cpu_lock[get_pcpu_idx()]);
 
     return pid;
 }
@@ -45,6 +57,12 @@ void thread_yield(void)
     unsigned int new_cur_pid;
     unsigned int old_cur_pid = get_curid();
 
+    // TODO: spinlock_try_acquire?
+    // another thread may yield to this thread
+    // while yielding (holding the lock)
+    // we could be interrupted by the timer - though only once
+    spinlock_acquire(&cpu_lock[get_pcpu_idx()]);
+
     tcb_set_state(old_cur_pid, TSTATE_READY);
     tqueue_enqueue(NUM_IDS + get_pcpu_idx(), old_cur_pid);
 
@@ -52,7 +70,24 @@ void thread_yield(void)
     tcb_set_state(new_cur_pid, TSTATE_RUN);
     set_curid(new_cur_pid);
 
-    if (old_cur_pid != new_cur_pid) {
+    spinlock_release(&cpu_lock[get_pcpu_idx()]);
+    if (old_cur_pid != new_cur_pid)
+    {
         kctx_switch(old_cur_pid, new_cur_pid);
     }
+}
+
+void sched_update(void)
+{
+    unsigned int current_cpu = get_pcpu_idx();
+    spinlock_acquire(&sched_update_lock[current_cpu]);
+    ms_elapsed[current_cpu] += (1000 / LAPIC_TIMER_INTR_FREQ);
+    if (ms_elapsed[current_cpu] >= SCHED_SLICE)
+    {
+        ms_elapsed[current_cpu] = 0;
+        spinlock_release(&sched_update_lock[current_cpu]);
+        thread_yield();
+        return;
+    }
+    spinlock_release(&sched_update_lock[current_cpu]);
 }
