@@ -30,13 +30,19 @@ void shallow_copy_mem(unsigned int from_pid, unsigned int to_pid)
             if (vaddr >= VM_USERLO && vaddr < VM_USERHI)
             {
                 ptbl_entry = get_ptbl_entry_by_va(from_pid, vaddr);
-                if (ptbl_entry & PTE_P)
+                if ((ptbl_entry & (PTE_U | PTE_P)) == (PTE_U | PTE_P))
                 {
                     physical_page_index = ptbl_entry >> 12;
-                    map_page(from_pid, vaddr, physical_page_index, (PTE_P | PTE_U | PTE_COW));
-                    map_page(to_pid, vaddr, physical_page_index, (PTE_P | PTE_U | PTE_COW));
+		    if((ptbl_entry & PTE_W) != 0)
+		    {
+	                map_page(from_pid, vaddr, physical_page_index, (PTE_P | PTE_U | PTE_COW));
+	                map_page(to_pid, vaddr, physical_page_index, (PTE_P | PTE_U | PTE_COW));
+	            } else {
+			map_page(from_pid, vaddr, physical_page_index, (PTE_P | PTE_U));
+			map_page(to_pid, vaddr, physical_page_index, (PTE_P | PTE_U));
+		    }
                 }
-            }
+	    }
         }
     }
 }
