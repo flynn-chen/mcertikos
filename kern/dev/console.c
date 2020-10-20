@@ -2,6 +2,7 @@
 #include <lib/types.h>
 #include <lib/debug.h>
 #include <lib/spinlock.h>
+#include <lib/reentrant_lock.h>
 
 #include "video.h"
 #include "console.h"
@@ -93,11 +94,17 @@ char cons_getc(void)
 */
 void cons_putc(char c)
 {
-    // TODO: is put_lock needed?
+    /**
+     *  try to acquire the print_lock
+     *      if success, print, and release    
+    */
+    // TODO: if user is ever allowed to call putchar, think about reintroducing reentrantlock
+    // reentrantlock_acquire(&print_lock);
     spinlock_acquire(&put_lock);
     serial_putc(c);
     video_putc(c);
     spinlock_release(&put_lock);
+    // reentrantlock_release(&print_lock);
 }
 
 char getchar(void)
@@ -166,4 +173,22 @@ char *readline(const char *prompt)
  * 
  *  - If there's a KERNEL_PANIC that occurs when a lock is already acquired (e.g. during readline or during dprintf),
  *    how can it get the lock in order to print the panic message?
+ * 
+ * 
+ * - make sure you always release the lock
+ * - don't acquire the lock more than once
+ * - lib/reentrant_lock.c can be acquired multiple times (may not be needed though)
+ *      - still must acquire the same number as release
+ * 
+ * 
+ * 
+ * Example error output:
+
+[D] kern/trap/TSyscall/TSyscall.c:161: [D] kern/dev/lapic.c:117: [0] Retry to calibrate internal timer of LAPIC.
+CPU 1: Process 1: Produced 3
+
+[D] kern/trap/TSyscall/TSyscall.c:161: [D] kern/dev/lapic.c:120: CPU 2: [4] Retry to calibrate internal timer of LAPIC.
+[W] kern/dev/lapic.c:125: Failed to calibrate internal timer of LAPCPU 1: Process 1: Produced 4
+IC.
+
 */
