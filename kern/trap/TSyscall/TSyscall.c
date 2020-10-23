@@ -7,6 +7,7 @@
 #include <dev/intr.h>
 #include <pcpu/PCPUIntro/export.h>
 #include <pmm/MContainer/export.h>
+#include <lib/bbq.h>
 
 #include "import.h"
 
@@ -90,7 +91,7 @@ void sys_spawn(tf_t *tf)
     quota = syscall_get_arg3(tf);
     current_pid = get_curid();
 
-    if (container_can_consume(current_pid, quota))
+    if (!container_can_consume(current_pid, quota))
     {
         syscall_set_errno(tf, E_EXCEEDS_QUOTA);
         syscall_set_retval1(tf, NUM_IDS);
@@ -158,6 +159,7 @@ void sys_produce(tf_t *tf)
     for (i = 0; i < 5; i++)
     {
         intr_local_disable();
+        // bbq_insert(&shared_bbq, i);
         KERN_DEBUG("CPU %d: Process %d: Produced %d\n", get_pcpu_idx(), get_curid(), i);
         intr_local_enable();
     }
@@ -166,11 +168,12 @@ void sys_produce(tf_t *tf)
 
 void sys_consume(tf_t *tf)
 {
-    unsigned int i;
+    unsigned int i, item;
     for (i = 0; i < 5; i++)
     {
         intr_local_disable();
-        KERN_DEBUG("CPU %d: Process %d: Consumed %d\n", get_pcpu_idx(), get_curid(), i);
+        // item = bbq_remove(&shared_bbq);
+        KERN_DEBUG("CPU %d: Process %d: Consumed %d\n", get_pcpu_idx(), get_curid(), item);
         intr_local_enable();
     }
     syscall_set_errno(tf, E_SUCC);
