@@ -41,7 +41,6 @@ unsigned int thread_spawn(void *entry, unsigned int id, unsigned int quota)
         tqueue_enqueue(NUM_IDS + get_pcpu_idx(), pid);
     }
     spinlock_release(&cpu_lock[get_pcpu_idx()]);
-
     return pid;
 }
 
@@ -71,6 +70,9 @@ void thread_yield(void)
     tqueue_enqueue(NUM_IDS + get_pcpu_idx(), old_cur_pid);
 
     new_cur_pid = tqueue_dequeue(NUM_IDS + get_pcpu_idx());
+
+    KERN_DEBUG("CPU %d is yielding from %d to %d\n", get_pcpu_idx(), old_cur_pid, new_cur_pid);
+
     tcb_set_state(new_cur_pid, TSTATE_RUN);
     set_curid(new_cur_pid);
 
@@ -84,12 +86,14 @@ void thread_yield(void)
 void sched_update(void)
 {
     unsigned int current_cpu = get_pcpu_idx();
+    // KERN_DEBUG("CPU %d just got interrupted\n", current_cpu);
     spinlock_acquire(&sched_update_lock[current_cpu]);
     ms_elapsed[current_cpu] += (1000 / LAPIC_TIMER_INTR_FREQ);
     if (ms_elapsed[current_cpu] >= SCHED_SLICE)
     {
         ms_elapsed[current_cpu] = 0;
         spinlock_release(&sched_update_lock[current_cpu]);
+        // KERN_DEBUG("CPU %d is yielding\n", current_cpu);
         thread_yield();
         return;
     }
@@ -98,5 +102,8 @@ void sched_update(void)
 
 unsigned int previous_id(void)
 {
-    return prev_id[get_pcpu_idx()];
+    spinlock_acquire(&cpu_lock[get_pcpu_idx()]);
+    unsigned int prev_pid = prev_id[get_pcpu_idx()];
+    spinlock_release(&cpu_lock[get_pcpu_idx()]);
+    return prev_pid;
 }

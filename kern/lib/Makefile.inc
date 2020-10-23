@@ -2,6 +2,8 @@
 
 OBJDIRS += $(KERN_OBJDIR)/lib
 
+KERN_SRCFILES += $(KERN_DIR)/lib/bbq.c
+KERN_SRCFILES += $(KERN_DIR)/lib/cvar.c
 KERN_SRCFILES += $(KERN_DIR)/lib/string.c
 KERN_SRCFILES += $(KERN_DIR)/lib/debug.c
 KERN_SRCFILES += $(KERN_DIR)/lib/dprintf.c
