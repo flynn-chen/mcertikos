@@ -3,6 +3,7 @@
 #include <lib/spinlock.h>
 #include <lib/thread.h>
 #include <pcpu/PCPUIntro/export.h>
+#include <thread/PThread/export.h>
 
 #include "cvar.h"
 
@@ -87,6 +88,7 @@ void cvar_wait(cvar_t *cvar, spinlock_t *lock)
     KERN_DEBUG("CPU %d: Process %d: is going to start up %d\n", get_pcpu_idx(), get_curid(), next_pid);
 
     unsigned int pid = get_curid();
+    set_previous_id();
 
     // put current process on the cvar's waiting queue
     enqueue(&(cvar->waiting), pid, get_pcpu_idx());

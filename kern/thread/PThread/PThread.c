@@ -14,12 +14,37 @@ spinlock_t sched_update_lock[NUM_CPUS];
 
 unsigned int prev_id[NUM_CPUS];
 
+void invalidate_previous_id(void)
+{
+    spinlock_acquire(&cpu_lock[get_pcpu_idx()]);
+    prev_id[get_pcpu_idx()] = NUM_IDS;
+    spinlock_release(&cpu_lock[get_pcpu_idx()]);
+    return;
+}
+
+void set_previous_id(void)
+{
+    spinlock_acquire(&cpu_lock[get_pcpu_idx()]);
+    prev_id[get_pcpu_idx()] = get_curid();
+    spinlock_release(&cpu_lock[get_pcpu_idx()]);
+    return;
+}
+
+unsigned int get_previous_id(void)
+{
+    spinlock_acquire(&cpu_lock[get_pcpu_idx()]);
+    unsigned int prev_pid = prev_id[get_pcpu_idx()];
+    spinlock_release(&cpu_lock[get_pcpu_idx()]);
+    return prev_pid;
+}
+
 void thread_init(unsigned int mbi_addr)
 {
     for (unsigned int i = 0; i < NUM_CPUS; i++)
     {
         spinlock_init(&cpu_lock[i]);
         spinlock_init(&sched_update_lock[NUM_CPUS]);
+        prev_id[i] = NUM_IDS;
     }
     bbq_init(&shared_bbq);
     tqueue_init(mbi_addr);
@@ -64,9 +89,8 @@ void thread_yield(void)
     // another thread may yield to this thread
     // while yielding (holding the lock)
     // we could be interrupted by the timer - though only once
+    set_previous_id();
     spinlock_acquire(&cpu_lock[get_pcpu_idx()]);
-
-    prev_id[get_pcpu_idx()] = old_cur_pid;
 
     tcb_set_state(old_cur_pid, TSTATE_READY);
     tqueue_enqueue(NUM_IDS + get_pcpu_idx(), old_cur_pid);
@@ -101,12 +125,4 @@ void sched_update(void)
         return;
     }
     spinlock_release(&sched_update_lock[current_cpu]);
-}
-
-unsigned int previous_id(void)
-{
-    spinlock_acquire(&cpu_lock[get_pcpu_idx()]);
-    unsigned int prev_pid = prev_id[get_pcpu_idx()];
-    spinlock_release(&cpu_lock[get_pcpu_idx()]);
-    return prev_pid;
 }

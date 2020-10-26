@@ -9,6 +9,68 @@ To use sample lab 1 solutions: copy files in samples/ to appropriate directories
 
 List here the following info:
 1. who you have worked with
+Flynn Chen (zc264) and Keaton Mueller (kim6)
+
 2. whether you coded this assignment together, and if not, who worked on which part
+Yeet.
+
 3. brief description of what you have implemented
+
+CONDITION VARIABLE IMPLEMENTATION
+
+We coded the condition variables based off of the lecture notes on implementing
+synchronization. 
+
+To handle the "waiting" queue that is needed for condition variables, we coded
+a basic array-based queue with head and tail pointers that get updated accordingly.
+We set the max length of the queue to be NUM_IDS because it's impossible for more
+then NUM_IDS processes to be waiting on a single condition variable at a time.
+
+An element in the queue was a struct consisting of two unsigned ints, one for
+the process id of the waiting element, and one for the CPU index. This let us
+wake up the process properly once it gets popped off of the waiting queue.
+
+Our cvar_wait function is essentially a direct translation of the pseudocode from
+the notes. 
+    - First, we ensure that we're holding the lock
+    - We first check if there's a waiting process to get off of the ready
+      queue. If there isn't, we immediately return
+    - If there is a process on the ready queue, then we put the current process
+      on the cvar's waiting queue, as well as set it state to STATE_SLEEP. We
+      also put it on its own sleeping queue.
+    - Then we set the process that was on the ready queue to TSTATE_RUN and update
+      the current id
+    - Finally, we release the lock, call kctx_switch, and reacquire the lock
+
+cvar_signal is also similar to the notes
+    - We check if the cvar's waiting queue is empty, and just return if so
+    - If it's not empty, we dequeue an element to get the pid and CPU index
+      of the process to be woken up
+    - We remove that process from its sleeping queue, set its state to TSTATE_READY,
+      and put it on the ready queue of its CPU
+      
+cvar_
+ 
+BBQ IMPLEMENTATION
+
+We coded a version of bounded buffer queues that is not starvation-free based off 
+of the lecture notes.
+
+Each BBQ contains a buffer that stores the elements. There is a front pointer and
+end pointer to convey the current status of the buffer, and a spinlock to prevent 
+deadlocking. We also added conditioned variables to tell the other opposing process 
+whether elements have been added or deleted. 
+
+We have three functions for our BBQ implementation:
+    - bbq_init 
+        this is a function that initializes the data structure for the BBQ. It is
+        called when the kernel initializes
+    - bbq_insert
+        this would insert an item into the bbq if there is free space, or put the 
+        process to sleep if the buffer is full.
+    -bbq_remove
+        this would remove an item from the bbq if it is not empty, or put the 
+        process to sleep if the buffer is full.
+
 4. and anything else you would like us to know
+hard :(
