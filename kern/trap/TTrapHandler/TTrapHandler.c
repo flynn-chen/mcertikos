@@ -144,12 +144,31 @@ void trap(tf_t *tf)
         KERN_WARN("No handler for user trap 0x%x, process %d, eip 0x%08x.\n",
                   tf->trapno, cur_pid, tf->eip);
     }
+    /*
+    user accesses bad mem (CPU 1 PID 4)
+    page fault
+        trap1   (switch to CPU 1 PID 0)
+        timer interrupt
+            trap2   goal: avoid switching to CPU 1 PID 0 because we're already here?
+            yield to CPU 1 PID 5
+            ...
+            we eventually get yielded to and woken up
+            our kstack is CPU 1 PID 0?
+            we should trap_return from trap2 and continue in trap1
+        finish handling the page fault
+        trap_return to user process
+                    .
+                    .
+                    .
+                    
+    - what happens when we don't call trap_return?
+    */
 
     // check for per CPU previous_id in PThread.c
-    if (cur_pid != previous_id())
-    {
-        kstack_switch(cur_pid);
-        set_pdir_base(cur_pid);
-        trap_return((void *)tf);
-    }
+    kstack_switch(cur_pid);
+    // if (cur_pid != previous_id())
+    // {
+    set_pdir_base(cur_pid);
+    // }
+    trap_return((void *)tf);
 }

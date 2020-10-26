@@ -12,6 +12,7 @@ int main(int argc, char **argv)
         if (i % 2 == 0)
             consume();
     }
+    printf("pong finished\n");
 
     return 0;
 }
