@@ -160,7 +160,6 @@ void sys_produce(tf_t *tf)
     {
         bbq_insert(&shared_bbq, i);
         intr_local_disable();
-
         KERN_DEBUG("CPU %d: Process %d: Produced %d\n", get_pcpu_idx(), get_curid(), i);
         intr_local_enable();
     }
