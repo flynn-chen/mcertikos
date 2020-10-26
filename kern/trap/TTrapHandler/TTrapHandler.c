@@ -129,8 +129,10 @@ void interrupt_handler(tf_t *tf)
 void trap(tf_t *tf)
 {
     unsigned int cur_pid = get_curid();
+    KERN_ASSERT(cur_pid != 0);
     trap_cb_t handler;
 
+    // if (cur_pid != get_previous_id())
     set_pdir_base(0); // switch to the kernel's page table
 
     handler = TRAP_HANDLER[get_pcpu_idx()][tf->trapno];
@@ -145,6 +147,48 @@ void trap(tf_t *tf)
                   tf->trapno, cur_pid, tf->eip);
     }
     /*
+
+    PID 1 is enjoying life
+        cur_id = 1, prev_id = NUM_IDS
+    
+    timer interrupt, yield to PID 2
+        cur_id = 2, prev_id = 1
+
+    page fault
+        trap
+            if prev_id != NUM_IDS (prev_id == 1)
+                set page directory to 0
+
+            prev_id = NUM_IDS
+
+            handle the trap
+
+            prev_id = 1
+
+            if prev_id != NUM_IDS (prev_id == 1)
+                set page directory back to 2
+
+            return
+
+
+    page fault
+        trap
+            if prev_id != NUM_IDS (prev_id == 1)
+                set page directory to 0
+
+            prev_id = NUM_IDS
+
+            timer interrupt
+                trap
+                    if prev_id != NUM_IDS (prev_id == 1)
+                        set page directory to 0
+
+            handle the trap
+            if prev_id != NUM_IDS (prev_id == 1)
+                set page directory back to 2
+            return
+
+
     user accesses bad mem (CPU 1 PID 4)
     page fault
         trap1   (switch to CPU 1 PID 0)
@@ -160,15 +204,23 @@ void trap(tf_t *tf)
                     .
                     .
                     .
-                    
-    - what happens when we don't call trap_return?
+
+
+    PID 1
+    page fault
+        trap1
+        timer
+                  
     */
 
     // check for per CPU previous_id in PThread.c
-    kstack_switch(cur_pid);
-    // if (cur_pid != previous_id())
-    // {
+    if (cur_pid != get_previous_id())
+    {
+        // KERN_ASSERT(previous_id() == 0);
+        kstack_switch(cur_pid);
+    }
     set_pdir_base(cur_pid);
-    // }
+    // invalidate the previous array
+    // invalidate_previous_id();
     trap_return((void *)tf);
 }
