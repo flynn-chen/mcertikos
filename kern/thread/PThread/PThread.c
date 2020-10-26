@@ -75,6 +75,7 @@ void thread_yield(void)
 
     tcb_set_state(new_cur_pid, TSTATE_RUN);
     set_curid(new_cur_pid);
+    prev_id[get_pcpu_idx()] = new_cur_pid;
 
     spinlock_release(&cpu_lock[get_pcpu_idx()]);
     if (old_cur_pid != new_cur_pid)
