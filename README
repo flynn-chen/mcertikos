@@ -53,7 +53,7 @@ cvar_
  
 BBQ IMPLEMENTATION
 
-We coded a version of bounded buffer queues that is not starvation-free based off 
+We implemented a version of bounded buffer queues that is not starvation-free based off 
 of the lecture notes.
 
 Each BBQ contains a buffer that stores the elements. There is a front pointer and
@@ -64,13 +64,21 @@ whether elements have been added or deleted.
 We have three functions for our BBQ implementation:
     - bbq_init 
         this is a function that initializes the data structure for the BBQ. It is
-        called when the kernel initializes
+        called when the kernel initializes in the kernel_main function.
     - bbq_insert
         this would insert an item into the bbq if there is free space, or put the 
-        process to sleep if the buffer is full.
+        process to sleep if the buffer is full. It first acquires the spinlock, 
+        then calls wait on the conditioned variable if there is no free space to 
+        insert. When the condition is satisfied, we insert the item, increment
+        the buffer end pointer, signal the conditioned variable that we had added an
+        item so the remove process can be notified. Lastly, we release the lock and
+        exit. 
     -bbq_remove
         this would remove an item from the bbq if it is not empty, or put the 
-        process to sleep if the buffer is full.
+        process to sleep if the buffer is full. First, we acquire the spinlock to
+        make it thread-safe. Then we items to be in the buffer if it is empty. We
+        get the item, increment the buffer front pointer. Signal the insert process
+        that we have extra space to insert, and release the lock to exit. 
 
 4. and anything else you would like us to know
 hard :(
