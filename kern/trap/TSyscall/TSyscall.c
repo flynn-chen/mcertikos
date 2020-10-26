@@ -158,8 +158,9 @@ void sys_produce(tf_t *tf)
     unsigned int i;
     for (i = 0; i < 5; i++)
     {
-        intr_local_disable();
         bbq_insert(&shared_bbq, i);
+        intr_local_disable();
+
         KERN_DEBUG("CPU %d: Process %d: Produced %d\n", get_pcpu_idx(), get_curid(), i);
         intr_local_enable();
     }
@@ -171,8 +172,9 @@ void sys_consume(tf_t *tf)
     unsigned int i, item;
     for (i = 0; i < 5; i++)
     {
-        intr_local_disable();
         item = bbq_remove(&shared_bbq);
+        intr_local_disable();
+
         KERN_DEBUG("CPU %d: Process %d: Consumed %d\n", get_pcpu_idx(), get_curid(), item);
         intr_local_enable();
     }

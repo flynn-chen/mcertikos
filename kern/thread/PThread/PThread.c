@@ -97,12 +97,12 @@ void thread_yield(void)
 
     new_cur_pid = tqueue_dequeue(NUM_IDS + get_pcpu_idx());
 
-    // KERN_DEBUG("CPU %d is yielding from %d to %d\n", get_pcpu_idx(), old_cur_pid, new_cur_pid);
+    KERN_DEBUG("CPU %d is yielding from %d to %d\n", get_pcpu_idx(), old_cur_pid, new_cur_pid);
 
     tcb_set_state(new_cur_pid, TSTATE_RUN);
     set_curid(new_cur_pid);
 
-    // pause();
+    pause();
     spinlock_release(&cpu_lock[get_pcpu_idx()]);
     if (old_cur_pid != new_cur_pid)
     {

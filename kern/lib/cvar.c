@@ -72,20 +72,20 @@ bool is_empty(queue_t *q)
 */
 void cvar_wait(cvar_t *cvar, spinlock_t *lock)
 {
-    if (!spinlock_holding(lock))
-    {
-        return;
-    }
+    // if (!spinlock_holding(lock))
+    // {
+    //     return;
+    // }
 
     // get next pid off of the ready queue
     unsigned int next_pid = tqueue_dequeue(NUM_IDS + get_pcpu_idx());
     if (next_pid == NUM_IDS)
     {
         // no clue what to do if this happens
-        KERN_DEBUG("CPU %d: Process %d: has no one to give control to\n", get_pcpu_idx(), get_curid());
+        // KERN_DEBUG("CPU %d: Process %d: has no one to give control to\n", get_pcpu_idx(), get_curid());
         return;
     }
-    KERN_DEBUG("CPU %d: Process %d: is going to start up %d\n", get_pcpu_idx(), get_curid(), next_pid);
+    // KERN_DEBUG("CPU %d: Process %d: is going to start up %d\n", get_pcpu_idx(), get_curid(), next_pid);
 
     unsigned int pid = get_curid();
     set_previous_id();
@@ -134,7 +134,7 @@ void cvar_signal(cvar_t *cvar)
     // put waiting thread on the ready queue
     tcb_set_state(elt->pid, TSTATE_READY);
     tqueue_enqueue(NUM_IDS + elt->pcpu_idx, elt->pid);
-    KERN_DEBUG("Putting CPU %d Process %d on the ready queue\n", elt->pcpu_idx, elt->pid);
+    // KERN_DEBUG("Putting CPU %d Process %d on the ready queue\n", elt->pcpu_idx, elt->pid);
 }
 
 /**
