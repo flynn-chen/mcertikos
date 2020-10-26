@@ -17,6 +17,7 @@ int main(int argc, char **argv)
         if (i % 4 == 0)
             produce();
     }
+    printf("ping finished\n");
 
     return 0;
 }

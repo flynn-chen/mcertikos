@@ -4,6 +4,7 @@
 #include <lib/debug.h>
 #include <dev/lapic.h>
 #include <pcpu/PCPUIntro/export.h>
+#include <lib/bbq.h>
 
 #include "import.h"
 
@@ -20,6 +21,7 @@ void thread_init(unsigned int mbi_addr)
         spinlock_init(&cpu_lock[i]);
         spinlock_init(&sched_update_lock[NUM_CPUS]);
     }
+    bbq_init(&shared_bbq);
     tqueue_init(mbi_addr);
     set_curid(0);
     tcb_set_state(0, TSTATE_RUN);
@@ -76,6 +78,7 @@ void thread_yield(void)
     tcb_set_state(new_cur_pid, TSTATE_RUN);
     set_curid(new_cur_pid);
 
+    // pause();
     spinlock_release(&cpu_lock[get_pcpu_idx()]);
     if (old_cur_pid != new_cur_pid)
     {
