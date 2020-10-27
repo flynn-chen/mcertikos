@@ -18,7 +18,7 @@ void bbq_insert(bbq_t *bbq, unsigned int item)
     // {
     //     return;
     // }
-    spinlock_acquire(&(bbq->bbq_lock));
+    qlock_acquire(&(bbq->bbq_lock));
 
     while ((bbq->next_empty - bbq->front) == BBQ_SIZE)
     {
@@ -35,14 +35,14 @@ void bbq_insert(bbq_t *bbq, unsigned int item)
     // }
 
     cvar_signal(&(bbq->item_added));
-    spinlock_release(&(bbq->bbq_lock));
+    qlock_release(&(bbq->bbq_lock));
 }
 
 unsigned int bbq_remove(bbq_t *bbq)
 {
     unsigned int item;
 
-    spinlock_acquire(&(bbq->bbq_lock));
+    qlock_acquire(&(bbq->bbq_lock));
     while (bbq->front == bbq->next_empty)
     {
         // KERN_DEBUG("\tCPU %d: Process %d: Waiting to remove (empty buffer) from %d (front). next_empty is %d\n", get_pcpu_idx(), get_curid(), bbq->front % BBQ_SIZE, bbq->next_empty % BBQ_SIZE);
@@ -64,7 +64,7 @@ unsigned int bbq_remove(bbq_t *bbq)
     // }
 
     cvar_signal(&(bbq->item_removed));
-    spinlock_release(&(bbq->bbq_lock));
+    qlock_release(&(bbq->bbq_lock));
 
     return item;
 }

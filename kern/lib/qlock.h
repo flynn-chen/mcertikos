@@ -1,25 +1,31 @@
-#ifndef _KERN_LIB_CVAR_H_
-#define _KERN_LIB_CVAR_H_
+#ifndef _KERN_LIB_QLOCK_H_
+#define _KERN_LIB_QLOCK_H_
 
 #ifdef _KERN_
 
 #include <lib/gcc.h>
 #include <lib/types.h>
 #include <lib/x86.h>
-#include <lib/qlock.h>
+#include <lib/spinlock.h>
 #include <lib/multiq.h>
+#include <lib/scheduler.h>
+
+#define FREE 0
+#define BUSY 1
 
 /**
- * Conditional variable implementation using queue_t
+ * Multiprocessor queuing lock implementation using queue_t
 */
 typedef struct
 {
+    unsigned int value;
+    spinlock_t spinlock;
     multiq_t waiting;
-} cvar_t;
+} qlock_t;
 
-void cvar_wait(cvar_t *cvar, qlock_t *lock);
-void cvar_signal(cvar_t *cvar);
-void cvar_broadcast(cvar_t *cvar);
+void qlock_init(qlock_t *qlock);
+void qlock_acquire(qlock_t *qlock);
+void qlock_release(qlock_t *qlock);
 
 /**
  * Other functions that need to be imported
@@ -34,4 +40,4 @@ void tqueue_remove(unsigned int chid, unsigned int pid);
 
 #endif /* _KERN_ */
 
-#endif /* !_KERN_LIB_CVAR_H_ */
+#endif /* !_KERN_LIB_QLOCK_H_ */

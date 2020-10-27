@@ -5,6 +5,7 @@
 #include <dev/lapic.h>
 #include <pcpu/PCPUIntro/export.h>
 #include <lib/bbq.h>
+#include <lib/scheduler.h>
 
 #include "import.h"
 
@@ -47,6 +48,7 @@ void thread_init(unsigned int mbi_addr)
         prev_id[i] = NUM_IDS;
     }
     bbq_init(&shared_bbq);
+    scheduler_init(&shared_scheduler);
     tqueue_init(mbi_addr);
     set_curid(0);
     tcb_set_state(0, TSTATE_RUN);
@@ -97,7 +99,7 @@ void thread_yield(void)
 
     new_cur_pid = tqueue_dequeue(NUM_IDS + get_pcpu_idx());
 
-    KERN_DEBUG("CPU %d is yielding from %d to %d\n", get_pcpu_idx(), old_cur_pid, new_cur_pid);
+    // KERN_DEBUG("CPU %d is yielding from %d to %d\n", get_pcpu_idx(), old_cur_pid, new_cur_pid);
 
     tcb_set_state(new_cur_pid, TSTATE_RUN);
     set_curid(new_cur_pid);

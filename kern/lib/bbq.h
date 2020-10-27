@@ -6,7 +6,7 @@
 #include <lib/gcc.h>
 #include <lib/types.h>
 #include <lib/x86.h>
-#include <lib/spinlock.h>
+#include <lib/qlock.h>
 #include <lib/cvar.h>
 
 #define BBQ_SIZE 10
@@ -23,7 +23,7 @@ typedef struct
     unsigned int front;
     unsigned int next_empty;
     unsigned int buff[BBQ_SIZE];
-    spinlock_t bbq_lock;
+    qlock_t bbq_lock;
     cvar_t item_added;
     cvar_t item_removed;
 } bbq_t;
