@@ -49,7 +49,7 @@ cvar_signal is also similar to the notes
     - We remove that process from its sleeping queue, set its state to TSTATE_READY,
       and put it on the ready queue of its CPU
       
-cvar_
+cvar_broadcast
  
 BBQ IMPLEMENTATION
 

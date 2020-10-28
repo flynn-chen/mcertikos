@@ -11,6 +11,7 @@
 #include <thread/PThread/export.h>
 
 #include "import.h"
+#include "export.h"
 
 static void trap_dump(tf_t *tf)
 {

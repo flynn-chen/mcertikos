@@ -173,7 +173,6 @@ void sys_consume(tf_t *tf)
     {
         item = bbq_remove(&shared_bbq);
         intr_local_disable();
-
         KERN_DEBUG("CPU %d: Process %d: Consumed %d\n", get_pcpu_idx(), get_curid(), item);
         intr_local_enable();
     }
