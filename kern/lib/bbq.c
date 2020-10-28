@@ -15,10 +15,6 @@ void bbq_init(bbq_t *bbq)
 
 void bbq_insert(bbq_t *bbq, unsigned int item)
 {
-    // if (spinlock_holding(&(bbq->bbq_lock)))
-    // {
-    //     return;
-    // }
     qlock_acquire(&(bbq->bbq_lock));
 
     while ((bbq->next_empty - bbq->front) == BBQ_SIZE)

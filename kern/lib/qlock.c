@@ -11,6 +11,7 @@
 
 void qlock_init(qlock_t *qlock)
 {
+    qlock->value = FREE;
     spinlock_init(&(qlock->spinlock));
 }
 

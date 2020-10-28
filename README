@@ -12,11 +12,52 @@ List here the following info:
 Flynn Chen (zc264) and Keaton Mueller (kim6)
 
 2. whether you coded this assignment together, and if not, who worked on which part
-Yeet.
+We worked on the entire assignment together.
 
 3. brief description of what you have implemented
 
+SCHEDULER IMPLEMENTATION
+Located at kern/lib/scheduler.c
+
+Our scheduler was largely based off of the notes from lecture.
+
+scheduler_make_ready
+    - First, we disable interrupts and acquire the scheduler spinlock 
+    - Then we remove the requested pid from the sleeping queue, set its state
+      to ready, and enqueue it on the proper ready queue
+    - Finally, we release the scheduler's spinlock and enable interrupts
+
+scheduler_suspend
+    - First, we disable interrupts and acquire the scheduler spinlock 
+    - Then we get the current pid from get_curid(), and the next_pid from
+      calling tqueue_dequeue from the ready queue
+    - We set the old pid to TSTATE_SLEEP and put it on the sleeping queue
+    - We set next_pid to TSTATE_RUN and set_curid(next_pid)
+    - We release the lock that was passed in, release the scheduler spinlock,
+      and enable interrupts
+    - As a final step, we kctx_switch to the next_pid
+
+QUEUE LOCK IMPLEMENTATION
+Located at kern/lib/qlock.c
+
+Our multi-processor queueing lock was based on the lecture notes.
+
+qlock_acquire 
+    - First we disable interrupts and acquire the qlock spinlock
+    - If the qlock's value is BUSY, we enqueue the current pid and CPU index
+      onto the qlock's waiting queue, and call scheduler_suspend
+    - If the qlock's value is FREE, we set it to BUSY and release the qlock spinlock
+    - Finally, we enable interrupts
+
+qlock_release
+    - First we disable interrupts and acquire the qlock spinlock
+    - If the qlock's waiting queue is empty, set the value to FREE
+    - If the qlock's waiting queue is not empty, dequeue an element
+      and call scheduler_make_ready with the pid and CPU idx taken from the queue
+    - Finally, release the qlock spinlock and enable interrupts
+
 CONDITION VARIABLE IMPLEMENTATION
+Located at kern/lib/cvar.c
 
 We coded the condition variables based off of the lecture notes on implementing
 synchronization. 
@@ -30,8 +71,9 @@ An element in the queue was a struct consisting of two unsigned ints, one for
 the process id of the waiting element, and one for the CPU index. This let us
 wake up the process properly once it gets popped off of the waiting queue.
 
-Our cvar_wait function is essentially a direct translation of the pseudocode from
-the notes. 
+Our implementation of this queue is in kern/lib/multiq.c
+
+cvar_wait
     - First, we ensure that we're holding the lock
     - We first check if there's a waiting process to get off of the ready
       queue. If there isn't, we immediately return
@@ -42,7 +84,7 @@ the notes.
       the current id
     - Finally, we release the lock, call kctx_switch, and reacquire the lock
 
-cvar_signal is also similar to the notes
+cvar_signal
     - We check if the cvar's waiting queue is empty, and just return if so
     - If it's not empty, we dequeue an element to get the pid and CPU index
       of the process to be woken up
@@ -50,35 +92,42 @@ cvar_signal is also similar to the notes
       and put it on the ready queue of its CPU
       
 cvar_broadcast
+    - This is essentially looped cvar_signal until the cvar's queue is empty
  
 BBQ IMPLEMENTATION
+Located at kern/lib/bbq.c
 
-We implemented a version of bounded buffer queues that is not starvation-free based off 
-of the lecture notes.
-
-Each BBQ contains a buffer that stores the elements. There is a front pointer and
-end pointer to convey the current status of the buffer, and a spinlock to prevent 
-deadlocking. We also added conditioned variables to tell the other opposing process 
-whether elements have been added or deleted. 
+We implemented a version of bounded buffer queues that is not starvation-free based 
+off of the lecture notes. Each BBQ contains a buffer that stores the elements. There 
+is a front pointer and end pointer to convey the current status of the buffer, and 
+a queuing lock to when multiple processes try to insert into the BBQ. We also added 
+conditioned variables to tell the other opposing process whether elements have been 
+added or deleted. 
 
 We have three functions for our BBQ implementation:
-    - bbq_init 
-        this is a function that initializes the data structure for the BBQ. It is
-        called when the kernel initializes in the kernel_main function.
-    - bbq_insert
-        this would insert an item into the bbq if there is free space, or put the 
-        process to sleep if the buffer is full. It first acquires the spinlock, 
-        then calls wait on the conditioned variable if there is no free space to 
-        insert. When the condition is satisfied, we insert the item, increment
-        the buffer end pointer, signal the conditioned variable that we had added an
-        item so the remove process can be notified. Lastly, we release the lock and
-        exit. 
-    -bbq_remove
-        this would remove an item from the bbq if it is not empty, or put the 
-        process to sleep if the buffer is full. First, we acquire the spinlock to
-        make it thread-safe. Then we items to be in the buffer if it is empty. We
-        get the item, increment the buffer front pointer. Signal the insert process
-        that we have extra space to insert, and release the lock to exit. 
+bbq_init 
+      - this is a function that initializes the data structure for the BBQ. 
+      - It is called when the kernel initializes in the kernel_main function.
+        
+bbq_insert
+      - This would insert an item into the bbq if there is free space, or put the 
+        process to sleep if the buffer is full. 
+      - It first acquires the queuing lock
+      - Then calls wait on the conditioned variable if there is no free space to 
+      insert. 
+      - When the condition is satisfied, we insert the item, increment the buffer 
+      end pointer, signal the conditioned variable that we had added an item so 
+      the remove process can be notified. 
+      - Lastly, we release the queuing lock and exit. 
+        
+bbq_remove
+      - this would remove an item from the bbq if it is not empty, or put the 
+      process to sleep if the buffer is full. 
+      - First, we acquire the queuing lock to. 
+      - Then we items to be in the buffer if it is empty. We get the item, 
+      increment the buffer front pointer. 
+      - Signal the insert process that we have extra space to insert, and 
+      release the lock to exit. 
 
 4. and anything else you would like us to know
 hard :(
