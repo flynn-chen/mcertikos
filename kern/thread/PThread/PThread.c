@@ -15,7 +15,8 @@ unsigned int sched_ticks[NUM_CPUS];
 void thread_init(unsigned int mbi_addr)
 {
     unsigned int i;
-    for (i = 0; i < NUM_CPUS; i++) {
+    for (i = 0; i < NUM_CPUS; i++)
+    {
         sched_ticks[i] = 0;
     }
 
@@ -37,7 +38,8 @@ unsigned int thread_spawn(void *entry, unsigned int id, unsigned int quota)
     spinlock_acquire(&sched_lk);
 
     pid = kctx_new(entry, id, quota);
-    if (pid != NUM_IDS) {
+    if (pid != NUM_IDS)
+    {
         tcb_set_state(pid, TSTATE_READY);
         tqueue_enqueue(NUM_IDS, pid);
     }
@@ -71,11 +73,13 @@ void thread_yield(void)
     tcb_set_state(new_cur_pid, TSTATE_RUN);
     set_curid(new_cur_pid);
 
-    if (old_cur_pid != new_cur_pid) {
+    if (old_cur_pid != new_cur_pid)
+    {
         spinlock_release(&sched_lk);
         kctx_switch(old_cur_pid, new_cur_pid);
     }
-    else {
+    else
+    {
         spinlock_release(&sched_lk);
     }
 }
@@ -84,12 +88,14 @@ void sched_update(void)
 {
     spinlock_acquire(&sched_lk);
     sched_ticks[get_pcpu_idx()] += 1000 / LAPIC_TIMER_INTR_FREQ;
-    if (sched_ticks[get_pcpu_idx()] >= SCHED_SLICE) {
+    if (sched_ticks[get_pcpu_idx()] >= SCHED_SLICE)
+    {
         sched_ticks[get_pcpu_idx()] = 0;
         spinlock_release(&sched_lk);
         thread_yield();
     }
-    else {
+    else
+    {
         spinlock_release(&sched_lk);
     }
 }
@@ -101,6 +107,8 @@ void sched_update(void)
 void thread_sleep(void *chan, spinlock_t *lk)
 {
     // TODO: your local variables here.
+    unsigned int curid = get_curid();
+    unsigned int new_cur_pid;
 
     if (lk == 0)
         KERN_PANIC("sleep without lock");
@@ -111,13 +119,31 @@ void thread_sleep(void *chan, spinlock_t *lk)
     // miss any wakeup (wakeup runs with sched_lk locked), so it's okay to
     // release lock.
 
+    // Exercise 2 Suggestion #1
+    spinlock_acquire(&sched_lk);
+    spinlock_release(lk);
+
     // TODO: Go to sleep.
+    tcb_set_state(curid, TSTATE_SLEEP);
+    tcb_set_chan(curid, chan);
 
     // TODO: Context switch.
+    new_cur_pid = tqueue_dequeue(NUM_IDS);
+    tcb_set_state(new_cur_pid, TSTATE_RUN);
+    set_curid(new_cur_pid);
+
+    // Exercise 2 Suggestion #2
+    spinlock_release(&sched_lk);
+    kctx_switch(curid, new_cur_pid);
 
     // TODO: Tidy up.
+    // Exercise 2 Suggestion #3
+    spinlock_acquire(&sched_lk);
+    tcb_set_chan(curid, 0); // TODO: do we need to lock just for one here?
 
     // TODO: Reacquire original lock.
+    spinlock_release(&sched_lk);
+    spinlock_acquire(lk);
 }
 
 /**
@@ -125,5 +151,15 @@ void thread_sleep(void *chan, spinlock_t *lk)
  */
 void thread_wakeup(void *chan)
 {
-    // TODO
+    spinlock_acquire(&sched_lk);
+    for (unsigned int pid = 0; pid < NUM_IDS; pid++)
+    {
+        if (tcb_get_chan(pid) == chan && tcb_get_state(pid) == TSTATE_SLEEP)
+        {
+            tcb_set_state(pid, TSTATE_READY);
+            tcb_set_chan(pid, 0);
+            tqueue_enqueue(NUM_IDS, pid);
+        }
+    }
+    spinlock_release(&sched_lk);
 }

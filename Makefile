@@ -112,7 +112,8 @@ endif
 # QEMU doesn't truncate the pcap file. Work around this.
 pre-qemu: .gdbinit
 	@rm -f qemu.pcap
-	$(V)cp newfs/certikos_disk_new.img certikos_disk.img
+	# $(V)cp newfs/certikos_disk_new.img certikos_disk.img
+	$(V)cp certikos_disk_new.img certikos_disk.img
 
 qemu: $(CERTIKOS_IMG) pre-qemu
 	$(V)$(QEMU) $(QEMUOPTS) $(QEMUOPTS_TCG)
