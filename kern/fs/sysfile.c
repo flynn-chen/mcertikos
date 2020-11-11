@@ -307,7 +307,10 @@ void sys_unlink(tf_t *tf)
 
     pt_copyin(get_curid(), syscall_get_arg2(tf), path, length);
     path[length] = '\0';
+<<<<<<<
     // KERN_DEBUG("unlinking: %s\n", path);
+=======
+>>>>>>> 87ecf013... 11112020
 
     if ((dp = nameiparent(path, name)) == 0)
     {
