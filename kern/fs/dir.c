@@ -38,8 +38,8 @@ int dir_namecmp(const char *s, const char *t)
  */
 struct inode *dir_lookup(struct inode *dp, char *name, uint32_t *poff)
 {
-    uint32_t off, inum;
-    struct dirent de;
+    uint32_t off;
+    struct dirent *d;
 
     if (dp->type != T_DIR)
         KERN_PANIC("dir_lookup not DIR");
@@ -51,7 +51,7 @@ struct inode *dir_lookup(struct inode *dp, char *name, uint32_t *poff)
         int num_read = inode_read(dp, dst, off, dirent_size);
         KERN_ASSERT(num_read == dirent_size);
 
-        struct dirent *d = (struct dirent *)dst; // cast dst pointer to a dirent
+        d = (struct dirent *)dst; // cast dst pointer to a dirent
 
         // two things must be true:
         //  1. dir_namecmp(dst, name)
@@ -72,11 +72,12 @@ int dir_link(struct inode *dp, char *name, uint32_t inum)
     // Check that name is not present.
     uint32_t poff, off;
     struct inode *ip;
+    struct dirent *d;
     ip = dir_lookup(dp, name, &poff);
     if (ip != 0)
     {
         inode_put(ip);
-        return -1
+        return -1;
     }
 
     // TODO: Look for an empty dirent.
@@ -87,7 +88,7 @@ int dir_link(struct inode *dp, char *name, uint32_t inum)
         int num_read = inode_read(dp, dst, off, dirent_size);
         KERN_ASSERT(num_read == dirent_size);
 
-        struct dirent *d = (struct dirent *)dst;
+        d = (struct dirent *)dst;
         if (d->inum == 0)
         {
             break;
