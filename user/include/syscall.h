@@ -12,174 +12,213 @@
 
 static gcc_inline void sys_puts(const char *s, size_t len)
 {
-    asm volatile ("int %0"
-                  :: "i" (T_SYSCALL),
-                     "a" (SYS_puts),
-                     "b" (s),
-                     "c" (len)
-                  : "cc", "memory");
+  asm volatile("int %0" ::"i"(T_SYSCALL),
+               "a"(SYS_puts),
+               "b"(s),
+               "c"(len)
+               : "cc", "memory");
 }
 
 static gcc_inline pid_t sys_spawn(unsigned int elf_id, unsigned int quota)
 {
-    int errno;
-    pid_t pid;
+  int errno;
+  pid_t pid;
 
-    asm volatile ("int %2"
-                  : "=a" (errno), "=b" (pid)
-                  : "i" (T_SYSCALL),
-                    "a" (SYS_spawn),
-                    "b" (elf_id),
-                    "c" (quota)
-                  : "cc", "memory");
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(pid)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_spawn),
+                 "b"(elf_id),
+                 "c"(quota)
+               : "cc", "memory");
 
-    return errno ? -1 : pid;
+  return errno ? -1 : pid;
 }
 
 static gcc_inline void sys_yield(void)
 {
-    asm volatile ("int %0"
-                  :: "i" (T_SYSCALL),
-                     "a" (SYS_yield)
-                  : "cc", "memory");
+  asm volatile("int %0" ::"i"(T_SYSCALL),
+               "a"(SYS_yield)
+               : "cc", "memory");
 }
 
 static gcc_inline int sys_read(int fd, char *buf, size_t n)
 {
-    int errno;
-    size_t ret;
+  int errno;
+  size_t ret;
 
-    asm volatile ("int %2"
-                  : "=a" (errno), "=b" (ret)
-                  : "i" (T_SYSCALL),
-                    "a" (SYS_read),
-                    "b" (fd),
-                    "c" (buf),
-                    "d" (n)
-                  : "cc", "memory");
+  if (n > 10000)
+  {
+    return -1;
+  }
 
-    return errno ? -1 : ret;
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(ret)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_read),
+                 "b"(fd),
+                 "c"(buf),
+                 "d"(n)
+               : "cc", "memory");
+
+  return errno ? -1 : ret;
 }
 
 static gcc_inline int sys_write(int fd, char *p, int n)
 {
-    int errno;
-    size_t ret;
+  int errno;
+  size_t ret;
 
-    asm volatile ("int %2"
-                  : "=a" (errno), "=b" (ret)
-                  : "i" (T_SYSCALL),
-                    "a" (SYS_write),
-                    "b" (fd),
-                    "c" (p),
-                    "d" (n)
-                  : "cc", "memory");
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(ret)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_write),
+                 "b"(fd),
+                 "c"(p),
+                 "d"(n)
+               : "cc", "memory");
 
-    return errno ? -1 : ret;
+  return errno ? -1 : ret;
 }
 
 static gcc_inline int sys_close(int fd)
 {
-    int errno;
-    int ret;
+  int errno;
+  int ret;
 
-    asm volatile ("int %2"
-                  : "=a" (errno), "=b" (ret)
-                  : "i" (T_SYSCALL),
-                    "a" (SYS_close),
-                    "b" (fd)
-                  : "cc", "memory");
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(ret)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_close),
+                 "b"(fd)
+               : "cc", "memory");
 
-    return errno ? -1 : 0;
+  return errno ? -1 : 0;
 }
 
 static gcc_inline int sys_fstat(int fd, struct file_stat *st)
 {
-    int errno;
-    int ret;
+  int errno;
+  int ret;
 
-    asm volatile ("int %2"
-                  : "=a" (errno), "=b" (ret)
-                  : "i" (T_SYSCALL),
-                    "a" (SYS_stat),
-                    "b" (fd),
-                    "c" (st)
-                  : "cc", "memory");
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(ret)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_stat),
+                 "b"(fd),
+                 "c"(st)
+               : "cc", "memory");
 
-    return errno ? -1 : 0;
+  return errno ? -1 : 0;
 }
 
 static gcc_inline int sys_link(char *old, char *new)
 {
-    int errno, ret;
+  int errno, ret;
+  int length_old = strlen(old);
+  int length_new = strlen(new);
 
-    asm volatile ("int %2"
-                   : "=a" (errno), "=b" (ret)
-                   : "i" (T_SYSCALL),
-                     "a" (SYS_link),
-                     "b" (old),
-                     "c" (new)
-                   : "cc", "memory");
+  if (length_old >= 128 || length_new >= 128)
+  {
+    return -1;
+  }
 
-    return errno ? -1 : 0;
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(ret)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_link),
+                 "b"(old),
+                 "c"(new),
+                 "d"(length_old),
+                 "e"(length_new)
+               : "cc", "memory");
+
+  return errno ? -1 : 0;
 }
 
 static gcc_inline int sys_unlink(char *path)
 {
-    int errno, ret;
+  int errno, ret;
+  int length = strlen(path);
 
-    asm volatile ("int %2"
-                  : "=a" (errno), "=b" (ret)
-                  : "i" (T_SYSCALL),
-                    "a" (SYS_unlink),
-                    "b" (path)
-                  : "cc", "memory");
+  if (length >= 128)
+  {
+    return -1;
+  }
 
-    return errno ? -1 : 0;
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(ret)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_unlink),
+                 "b"(path),
+                 "c"(length)
+               : "cc", "memory");
+
+  return errno ? -1 : 0;
 }
 
 static gcc_inline int sys_open(char *path, int omode)
 {
-    int errno;
-    int fd;
+  int errno;
+  int fd;
+  int length = strlen(path);
 
-    asm volatile ("int %2"
-                  : "=a" (errno), "=b" (fd)
-                  : "i" (T_SYSCALL),
-                    "a" (SYS_open),
-                    "b" (path),
-                    "c" (omode)
-                  : "cc", "memory");
+  if (length >= 128)
+  {
+    return -1;
+  }
 
-    return errno ? -1 : fd;
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(fd)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_open),
+                 "b"(path),
+                 "c"(omode),
+                 "d"(length)
+               : "cc", "memory");
+
+  return errno ? -1 : fd;
 }
 
 static gcc_inline int sys_mkdir(char *path)
 {
-    int errno, ret;
+  int errno, ret;
 
-    asm volatile ("int %2"
-                  : "=a" (errno), "=b" (ret)
-                  : "i" (T_SYSCALL),
-                    "a" (SYS_mkdir),
-                    "b" (path)
-                  : "cc", "memory");
+  int length = strlen(path);
+  if (length >= 128)
+  {
+    return -1;
+  }
 
-    return errno ? -1 : 0;
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(ret)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_mkdir),
+                 "b"(path),
+                 "c"(length)
+               : "cc", "memory");
+
+  return errno ? -1 : 0;
 }
 
 static gcc_inline int sys_chdir(char *path)
 {
-    int errno, ret;
+  int errno, ret;
+  int length = strlen(path);
+  if (length >= 128)
+  {
+    return -1;
+  }
 
-    asm volatile ("int %2"
-                  : "=a" (errno), "=b" (ret)
-                  : "i" (T_SYSCALL),
-                    "a" (SYS_chdir),
-                    "b" (path)
-                  : "cc", "memory");
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(ret)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_chdir),
+                 "b"(path),
+                 "c"(length)
+               : "cc", "memory");
 
-    return errno ? -1 : 0;
+  return errno ? -1 : 0;
 }
 
-#endif  /* !_USER_SYSCALL_H_ */
+#endif /* !_USER_SYSCALL_H_ */

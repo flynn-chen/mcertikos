@@ -40,7 +40,7 @@ struct inode *dir_lookup(struct inode *dp, char *name, uint32_t *poff)
 {
     uint32_t off;
     struct dirent *d;
-
+    int num_read;
     if (dp->type != T_DIR)
         KERN_PANIC("dir_lookup not DIR");
 
@@ -48,7 +48,7 @@ struct inode *dir_lookup(struct inode *dp, char *name, uint32_t *poff)
     char dst[dirent_size];
     for (off = 0; off < dp->size; off += dirent_size)
     {
-        int num_read = inode_read(dp, dst, off, dirent_size);
+        num_read = inode_read(dp, dst, off, dirent_size);
         KERN_ASSERT(num_read == dirent_size);
 
         d = (struct dirent *)dst; // cast dst pointer to a dirent
@@ -73,6 +73,7 @@ int dir_link(struct inode *dp, char *name, uint32_t inum)
     uint32_t poff, off;
     struct inode *ip;
     struct dirent *d;
+    int num_read;
     ip = dir_lookup(dp, name, &poff);
     if (ip != 0)
     {
@@ -85,7 +86,7 @@ int dir_link(struct inode *dp, char *name, uint32_t inum)
     char dst[dirent_size];
     for (off = 0; off < dp->size; off += dirent_size)
     {
-        int num_read = inode_read(dp, dst, off, dirent_size);
+        num_read = inode_read(dp, dst, off, dirent_size);
         KERN_ASSERT(num_read == dirent_size);
 
         d = (struct dirent *)dst;

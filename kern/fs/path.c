@@ -39,15 +39,15 @@
  */
 static char *skipelem(char *path, char *name)
 {
-    if (path == 0 || *path == "\0")
+    if (path == 0 || *path == '\0')
     {
         return 0;
     }
 
-    char *front, end;
+    char *front, *end;
     int len;
     front = path;
-    while (*front == "/") //find first non-slash element
+    while (*front == '/') //find first non-slash element
     {
         front++;
     }
@@ -58,19 +58,19 @@ static char *skipelem(char *path, char *name)
         end++;
     }
 
-    len = end - start; //calculate length of path element
+    len = end - front; //calculate length of path element
     if (len <= 0)      // if there is not path element
     {
         return 0;
     }
     if (len > DIRSIZ) //if path element exceeds size
     {
-        len = DIRSIZ - 1
+        len = DIRSIZ - 1;
     }
 
     memmov(name, front, len); //move from path to name
-    name[len] = "\0";         //add string terminator
-    while (*end == "/")       //ignore trailing slashes
+    name[len] = '\0';         //add string terminator
+    while (*end == '/')       //ignore trailing slashes
     {
         end++;
     }
@@ -85,7 +85,7 @@ static char *skipelem(char *path, char *name)
  */
 static struct inode *namex(char *path, bool nameiparent, char *name)
 {
-    struct inode *ip;
+    struct inode *ip, *next;
 
     // If path is a full path, get the pointer to the root inode. Otherwise get
     // the inode corresponding to the current working directory.
@@ -97,16 +97,73 @@ static struct inode *namex(char *path, bool nameiparent, char *name)
     {
         ip = inode_dup((struct inode *)tcb_get_cwd(get_curid()));
     }
+    /*
+        namex(/usr/var/lib, false, name)
 
+        pre:
+            path = "/usr/var/lib"
+            name = 0
+            ip = /
+        loop 0
+            condition: path = "var/lib", name = usr => TRUE
+            body: ip = /usr
+        loop 1 
+            condition: path = "lib", name = var => TRUE
+            body: ip = /usr/var
+        loop 2
+            condition: path = "", name = lib => TRUE
+            body1: unlock /usr/var and return it
+            body2: ip = usr/var/lib
+        loop 3
+            condition: path = 0, name = lib => FALSE
+            return ip = usr/var/lib
+
+        namex("", true, name)
+
+        ip = cwd/
+        path = ""
+        name = 0
+        loop 0
+            condition: path = 0, name = 0 => FALSE
+
+        name("/", true, name)
+        
+        pre:
+            path = "/"
+            name = 0
+            ip = /
+        loop 0
+            condition: path = "", name = 0 => TRUE
+            body: 
+    */
     while ((path = skipelem(path, name)) != 0)
     {
-        // TODO
+        inode_lock(ip);
+        if (ip->type != T_DIR)
+        {
+            inode_unlockput(ip);
+            return 0;
+        }
+        if (nameiparent && *path == '\0')
+        {
+            inode_unlockput(ip);
+            return ip;
+        }
+
+        next = dir_lookup(ip, name, 0);
+        inode_unlockput(ip);
+        if (next == 0)
+        {
+            return 0;
+        }
+        ip = next;
     }
     if (nameiparent)
     {
         inode_put(ip);
         return 0;
     }
+    inode_put(ip); // TODO: if namei is SUPPOSED to increment ref, then delete this
     return ip;
 }
 
