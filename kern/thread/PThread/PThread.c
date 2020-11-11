@@ -113,7 +113,6 @@ void thread_sleep(void *chan, spinlock_t *lk)
     if (lk == 0)
         KERN_PANIC("sleep without lock");
 
-    // TODO:
     // Must acquire sched_lk in order to change the current thread's state and
     // then switch. Once we hold sched_lk, we can be guaranteed that we won't
     // miss any wakeup (wakeup runs with sched_lk locked), so it's okay to
@@ -123,12 +122,12 @@ void thread_sleep(void *chan, spinlock_t *lk)
     spinlock_acquire(&sched_lk);
     spinlock_release(lk);
 
-    // TODO: Go to sleep.
+    // Go to sleep.
     tcb_set_state(curid, TSTATE_SLEEP);
     tcb_set_chan(curid, chan);
 
-    // TODO: Context switch.
-    new_cur_pid = tqueue_dequeue(NUM_IDS);
+    // Context switch.
+    new_cur_pid = tqueue_dequeue(NUM_IDS + get_pcpu_idx());
     tcb_set_state(new_cur_pid, TSTATE_RUN);
     set_curid(new_cur_pid);
 
@@ -136,12 +135,12 @@ void thread_sleep(void *chan, spinlock_t *lk)
     spinlock_release(&sched_lk);
     kctx_switch(curid, new_cur_pid);
 
-    // TODO: Tidy up.
+    // Tidy up.
     // Exercise 2 Suggestion #3
     spinlock_acquire(&sched_lk);
-    tcb_set_chan(curid, 0); // TODO: do we need to lock just for one here?
+    tcb_set_chan(curid, 0);
 
-    // TODO: Reacquire original lock.
+    // Reacquire original lock.
     spinlock_release(&sched_lk);
     spinlock_acquire(lk);
 }
@@ -158,7 +157,7 @@ void thread_wakeup(void *chan)
         {
             tcb_set_state(pid, TSTATE_READY);
             tcb_set_chan(pid, 0);
-            tqueue_enqueue(NUM_IDS, pid);
+            tqueue_enqueue(NUM_IDS + get_pcpu_idx(), pid);
         }
     }
     spinlock_release(&sched_lk);

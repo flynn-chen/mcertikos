@@ -16,7 +16,8 @@ struct devsw *devsw;
 
 static void inode_trunc(struct inode *ip);
 
-struct {
+struct
+{
     spinlock_t lock;
     struct inode inode[NINODE];
 } inode_cache;
@@ -41,13 +42,15 @@ struct inode *inode_alloc(uint32_t dev, short type)
 
     read_superblock(dev, &sb);
 
-    for (inum = 1; inum < sb.ninodes; inum++) {
+    for (inum = 1; inum < sb.ninodes; inum++)
+    {
         bp = bufcache_read(dev, IBLOCK(inum));
-        dip = (struct dinode *) bp->data + inum % IPB;
-        if (dip->type == 0) {  // a free inode
+        dip = (struct dinode *)bp->data + inum % IPB;
+        if (dip->type == 0)
+        { // a free inode
             memset(dip, 0, sizeof(*dip));
             dip->type = type;
-            log_write(bp);  // mark it allocated on the disk
+            log_write(bp); // mark it allocated on the disk
             bufcache_release(bp);
             return inode_get(dev, inum);
         }
@@ -66,7 +69,7 @@ void inode_update(struct inode *ip)
     struct dinode *dip;
 
     bp = bufcache_read(ip->dev, IBLOCK(ip->inum));
-    dip = (struct dinode *) bp->data + ip->inum % IPB;
+    dip = (struct dinode *)bp->data + ip->inum % IPB;
     dip->type = ip->type;
     dip->major = ip->major;
     dip->minor = ip->minor;
@@ -90,13 +93,15 @@ struct inode *inode_get(uint32_t dev, uint32_t inum)
 
     // Is the inode already cached?
     empty = 0;
-    for (ip = &inode_cache.inode[0]; ip < &inode_cache.inode[NINODE]; ip++) {
-        if (ip->ref > 0 && ip->dev == dev && ip->inum == inum) {
+    for (ip = &inode_cache.inode[0]; ip < &inode_cache.inode[NINODE]; ip++)
+    {
+        if (ip->ref > 0 && ip->dev == dev && ip->inum == inum)
+        {
             ip->ref++;
             spinlock_release(&inode_cache.lock);
             return ip;
         }
-        if (empty == 0 && ip->ref == 0)  // Remember empty slot.
+        if (empty == 0 && ip->ref == 0) // Remember empty slot.
             empty = ip;
     }
 
@@ -144,9 +149,10 @@ void inode_lock(struct inode *ip)
     ip->flags |= I_BUSY;
     spinlock_release(&inode_cache.lock);
 
-    if (!(ip->flags & I_VALID)) {
+    if (!(ip->flags & I_VALID))
+    {
         bp = bufcache_read(ip->dev, IBLOCK(ip->inum));
-        dip = (struct dinode *) bp->data + ip->inum % IPB;
+        dip = (struct dinode *)bp->data + ip->inum % IPB;
         ip->type = dip->type;
         ip->major = dip->major;
         ip->minor = dip->minor;
@@ -158,7 +164,6 @@ void inode_lock(struct inode *ip)
         if (ip->type == 0)
             KERN_PANIC("inode_lock: no type");
     }
-
 }
 
 /**
@@ -185,7 +190,8 @@ void inode_unlock(struct inode *ip)
 void inode_put(struct inode *ip)
 {
     spinlock_acquire(&inode_cache.lock);
-    if (ip->ref == 1 && (ip->flags & I_VALID) && ip->nlink == 0) {
+    if (ip->ref == 1 && (ip->flags & I_VALID) && ip->nlink == 0)
+    {
         // inode has no links: truncate and free inode.
         if (ip->flags & I_BUSY)
             KERN_PANIC("inode_put busy");
@@ -229,20 +235,23 @@ static uint32_t bmap(struct inode *ip, uint32_t bn)
     uint32_t addr, *a;
     struct buf *bp;
 
-    if (bn < NDIRECT) {
+    if (bn < NDIRECT)
+    {
         if ((addr = ip->addrs[bn]) == 0)
             ip->addrs[bn] = addr = block_alloc(ip->dev);
         return addr;
     }
     bn -= NDIRECT;
 
-    if (bn < NINDIRECT) {
+    if (bn < NINDIRECT)
+    {
         // Load indirect block, allocating if necessary.
         if ((addr = ip->addrs[NDIRECT]) == 0)
             ip->addrs[NDIRECT] = addr = block_alloc(ip->dev);
         bp = bufcache_read(ip->dev, addr);
-        a = (uint32_t *) bp->data;
-        if ((addr = a[bn]) == 0) {
+        a = (uint32_t *)bp->data;
+        if ((addr = a[bn]) == 0)
+        {
             a[bn] = addr = block_alloc(ip->dev);
             log_write(bp);
         }
@@ -267,17 +276,21 @@ static void inode_trunc(struct inode *ip)
     struct buf *bp;
     uint32_t *a;
 
-    for (i = 0; i < NDIRECT; i++) {
-        if (ip->addrs[i]) {
+    for (i = 0; i < NDIRECT; i++)
+    {
+        if (ip->addrs[i])
+        {
             block_free(ip->dev, ip->addrs[i]);
             ip->addrs[i] = 0;
         }
     }
 
-    if (ip->addrs[NDIRECT]) {
+    if (ip->addrs[NDIRECT])
+    {
         bp = bufcache_read(ip->dev, ip->addrs[NDIRECT]);
-        a = (uint32_t *) bp->data;
-        for (j = 0; j < NINDIRECT; j++) {
+        a = (uint32_t *)bp->data;
+        for (j = 0; j < NINDIRECT; j++)
+        {
             if (a[j])
                 block_free(ip->dev, a[j]);
         }
@@ -310,7 +323,8 @@ int inode_read(struct inode *ip, char *dst, uint32_t off, uint32_t n)
     uint32_t tot, m;
     struct buf *bp;
 
-    if (ip->type == T_DEV) {
+    if (ip->type == T_DEV)
+    {
         if (ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].read)
             return -1;
         return devsw[ip->major].read(ip, dst, n);
@@ -321,7 +335,8 @@ int inode_read(struct inode *ip, char *dst, uint32_t off, uint32_t n)
     if (off + n > ip->size)
         n = ip->size - off;
 
-    for (tot = 0; tot < n; tot += m, off += m, dst += m) {
+    for (tot = 0; tot < n; tot += m, off += m, dst += m)
+    {
         bp = bufcache_read(ip->dev, bmap(ip, off / BSIZE));
         m = min(n - tot, BSIZE - off % BSIZE);
         memmove(dst, bp->data + off % BSIZE, m);
@@ -338,7 +353,8 @@ int inode_write(struct inode *ip, char *src, uint32_t off, uint32_t n)
     uint32_t tot, m;
     struct buf *bp;
 
-    if (ip->type == T_DEV) {
+    if (ip->type == T_DEV)
+    {
         if (ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].write)
             return -1;
         return devsw[ip->major].write(ip, src, n);
@@ -349,7 +365,8 @@ int inode_write(struct inode *ip, char *src, uint32_t off, uint32_t n)
     if (off + n > MAXFILE * BSIZE)
         return -1;
 
-    for (tot = 0; tot < n; tot += m, off += m, src += m) {
+    for (tot = 0; tot < n; tot += m, off += m, src += m)
+    {
         bp = bufcache_read(ip->dev, bmap(ip, off / BSIZE));
         m = min(n - tot, BSIZE - off % BSIZE);
         memmove(bp->data + off % BSIZE, src, m);
@@ -357,7 +374,8 @@ int inode_write(struct inode *ip, char *src, uint32_t off, uint32_t n)
         bufcache_release(bp);
     }
 
-    if (n > 0 && off > ip->size) {
+    if (n > 0 && off > ip->size)
+    {
         ip->size = off;
         inode_update(ip);
     }
