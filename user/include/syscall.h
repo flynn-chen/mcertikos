@@ -130,7 +130,7 @@ static gcc_inline int sys_link(char *old, char *new)
                  "b"(old),
                  "c"(new),
                  "d"(length_old),
-                 "e"(length_new)
+                 "S"(length_new)
                : "cc", "memory");
 
   return errno ? -1 : 0;

@@ -26,12 +26,13 @@
  */
 static int fdalloc(struct file *f)
 {
-    struct file **openfiles = tcb_get_openfiles(get_curid());
+    unsigned int pid = get_curid();
+    struct file **openfiles = tcb_get_openfiles(pid);
     for (int i = 0; i < NOFILE; i++)
     {
         if (openfiles[i]->type == FD_NONE)
         {
-            tcb_set_openfiles(get_curid(), i, f);
+            tcb_set_openfiles(pid, i, f);
             return i;
         }
     }
@@ -50,23 +51,43 @@ static int fdalloc(struct file *f)
 
 void sys_read(tf_t *tf)
 {
-    // TODO
     int fd = syscall_get_arg2(tf);
-    size_t n = syscall_get_arg4(tf);
-    char buff[n];
-
-    struct file *fp = tcb_get_openfiles(get_curid())[fd];
-    if (fp->type == FD_NONE)
+    if (fd < 0 || fd > NOFILE)
     {
         syscall_set_retval1(tf, -1);
         syscall_set_errno(tf, E_BADF);
+        return;
     }
 
-    int num_read = file_read(fd, buff, n);
+    size_t n = syscall_get_arg4(tf);
+    if (n < 0)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+    char buff[n];
+
+    struct file *fp = tcb_get_openfiles(get_curid())[fd];
+    if (fp == 0 || fp->type == FD_NONE || fp->ip == 0)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+        return;
+    }
+
+    unsigned int uva = syscall_get_arg3(tf); //check user address doesn't falls in kernel mem
+    if (uva < VM_USERLO || uva + n > VM_USERHI)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+
+    int num_read = file_read(fp, buff, n);
 
     // size_t pt_copyout(void *kva, uint32_t pmap_id, uintptr_t uva, size_t len)
-    pt_copyout(syscall_get_arg3(tf), get_curid(), buff, num_read);
-
+    pt_copyout(buff, get_curid(), uva, num_read);
     syscall_set_retval1(tf, num_read);
     syscall_set_errno(tf, E_SUCC);
 }
@@ -82,7 +103,43 @@ void sys_read(tf_t *tf)
  */
 void sys_write(tf_t *tf)
 {
-    // TODO
+    int fd = syscall_get_arg2(tf);
+    if (fd < 0 || fd > NOFILE)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+        return;
+    }
+
+    size_t n = syscall_get_arg4(tf);
+    if (n < 0)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+    char buff[n];
+
+    struct file *fp = tcb_get_openfiles(get_curid())[fd];
+    if (fp == 0 || fp->type == FD_NONE || fp->ip == 0)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+        return;
+    }
+
+    unsigned int uva = syscall_get_arg3(tf); //check user address doesn't falls in kernel mem
+    if (uva < VM_USERLO || uva + n > VM_USERHI)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+
+    pt_copyin(get_curid(), uva, buff, n);
+    int num_read = file_write(fp, buff, n);
+    syscall_set_retval1(tf, num_read);
+    syscall_set_errno(tf, E_SUCC);
 }
 
 /**
@@ -91,7 +148,26 @@ void sys_write(tf_t *tf)
  */
 void sys_close(tf_t *tf)
 {
-    // TODO
+    int fd = syscall_get_arg2(tf);
+    if (fd < 0 || fd > NOFILE)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+        return;
+    }
+
+    struct file *fp = tcb_get_openfiles(get_curid())[fd];
+    if (fp == 0 || fp->type == FD_NONE || fp->ip == 0)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+        return;
+    }
+
+    file_close(fp);
+    tcb_set_openfiles(get_curid(), fd, 0);
+    syscall_set_retval1(tf, 0);
+    syscall_set_errno(tf, E_SUCC);
 }
 
 /**

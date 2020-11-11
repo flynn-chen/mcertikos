@@ -15,9 +15,15 @@
 #include "stat.h"
 #include "inode.h"
 
-struct file {
-    enum { FD_NONE, FD_PIPE, FD_INODE } type;
-    int ref;  // reference count
+struct file
+{
+    enum
+    {
+        FD_NONE,
+        FD_PIPE,
+        FD_INODE
+    } type;
+    int ref; // reference count
     int8_t readable;
     int8_t writable;
     struct inode *ip;
@@ -46,6 +52,6 @@ int file_write(struct file *f, char *addr, int n);
 
 #define CONSOLE 1
 
-#endif  /* _KERN_ */
+#endif /* _KERN_ */
 
-#endif  /* !_KERN_FS_FILE_H_ */
+#endif /* !_KERN_FS_FILE_H_ */

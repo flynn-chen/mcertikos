@@ -172,5 +172,6 @@ clean:
 
 mkfs:
 	@echo "Copying the new file system disk image..."
-	$(V)cp newfs/certikos_disk_new.img certikos_disk.img
+	# $(V)cp newfs/certikos_disk_new.img certikos_disk.img
+	$(V)cp certikos_disk_new.img certikos_disk.img
 	@echo "Done."

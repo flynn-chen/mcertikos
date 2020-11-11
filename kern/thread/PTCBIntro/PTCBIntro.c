@@ -19,14 +19,15 @@
  * Since the value 0 is reserved for thread id 0, we use NUM_IDS
  * to represent the NULL index.
  */
-struct TCB {
+struct TCB
+{
     t_state state;
     unsigned int cpuid;
     unsigned int prev;
     unsigned int next;
     void *channel;
-    struct file *openfiles[NOFILE];  // Open files
-    struct inode *cwd;               // Current working directory
+    struct file *openfiles[NOFILE]; // Open files
+    struct inode *cwd;              // Current working directory
 } in_cache_line;
 
 struct TCB TCBPool[NUM_IDS];

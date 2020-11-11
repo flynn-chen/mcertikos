@@ -10,7 +10,8 @@
 #include "file.h"
 #include "log.h"
 
-struct {
+struct
+{
     spinlock_t lock;
     struct file file[NFILE];
 } ftable;
@@ -28,8 +29,10 @@ struct file *file_alloc(void)
     struct file *f;
 
     spinlock_acquire(&ftable.lock);
-    for (f = ftable.file; f < ftable.file + NFILE; f++) {
-        if (f->ref == 0) {
+    for (f = ftable.file; f < ftable.file + NFILE; f++)
+    {
+        if (f->ref == 0)
+        {
             f->ref = 1;
             spinlock_release(&ftable.lock);
             return f;
@@ -62,7 +65,8 @@ void file_close(struct file *f)
     spinlock_acquire(&ftable.lock);
     if (f->ref < 1)
         KERN_PANIC("file_close");
-    if (--f->ref > 0) {
+    if (--f->ref > 0)
+    {
         spinlock_release(&ftable.lock);
         return;
     }
@@ -71,7 +75,8 @@ void file_close(struct file *f)
     f->type = FD_NONE;
     spinlock_release(&ftable.lock);
 
-    if (ff.type == FD_INODE) {
+    if (ff.type == FD_INODE)
+    {
         begin_trans();
         inode_put(ff.ip);
         commit_trans();
@@ -83,7 +88,8 @@ void file_close(struct file *f)
  */
 int file_stat(struct file *f, struct file_stat *st)
 {
-    if (f->type == FD_INODE) {
+    if (f->type == FD_INODE)
+    {
         inode_lock(f->ip);
         inode_stat(f->ip, st);
         inode_unlock(f->ip);
@@ -101,7 +107,8 @@ int file_read(struct file *f, char *addr, int n)
 
     if (f->readable == 0)
         return -1;
-    if (f->type == FD_INODE) {
+    if (f->type == FD_INODE)
+    {
         inode_lock(f->ip);
         if ((r = inode_read(f->ip, addr, f->off, n)) > 0)
             f->off += r;
@@ -121,7 +128,8 @@ int file_write(struct file *f, char *addr, int n)
 
     if (f->writable == 0)
         return -1;
-    if (f->type == FD_INODE) {
+    if (f->type == FD_INODE)
+    {
         // Write a few blocks at a time to avoid exceeding
         // the maximum log transaction size, including
         // i-node, indirect block, allocation blocks,
@@ -130,7 +138,8 @@ int file_write(struct file *f, char *addr, int n)
         // might be writing a device like the console.
         int max = ((LOGSIZE - 1 - 1 - 2) / 2) * 512;
         int i = 0;
-        while (i < n) {
+        while (i < n)
+        {
             int n1 = n - i;
             if (n1 > max)
                 n1 = max;

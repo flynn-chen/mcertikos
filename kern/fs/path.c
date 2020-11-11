@@ -14,6 +14,7 @@
 #include <kern/lib/spinlock.h>
 #include <thread/PTCBIntro/export.h>
 #include <thread/PCurID/export.h>
+#include <lib/string.h>
 #include "inode.h"
 #include "dir.h"
 #include "log.h"
@@ -68,9 +69,9 @@ static char *skipelem(char *path, char *name)
         len = DIRSIZ - 1;
     }
 
-    memmov(name, front, len); //move from path to name
-    name[len] = '\0';         //add string terminator
-    while (*end == '/')       //ignore trailing slashes
+    memmove(name, front, len); //move from path to name
+    name[len] = '\0';          //add string terminator
+    while (*end == '/')        //ignore trailing slashes
     {
         end++;
     }
@@ -133,7 +134,7 @@ static struct inode *namex(char *path, bool nameiparent, char *name)
             name = 0
             ip = /
         loop 0
-            condition: path = "", name = 0 => TRUE
+            condition: path = "", name = 0 => TRUE | should be FALSE
             body: 
     */
     while ((path = skipelem(path, name)) != 0)
@@ -163,7 +164,7 @@ static struct inode *namex(char *path, bool nameiparent, char *name)
         inode_put(ip);
         return 0;
     }
-    inode_put(ip); // TODO: if namei is SUPPOSED to increment ref, then delete this
+    inode_put(ip); // TODO: already put in line 154
     return ip;
 }
 
