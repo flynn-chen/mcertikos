@@ -56,9 +56,10 @@ struct inode *dir_lookup(struct inode *dp, char *name, uint32_t *poff)
         // two things must be true:
         //  1. dir_namecmp(dst, name)
         //  2. inum is not 0 (find an entry that is allocated)
-        if (dir_namecmp(d->name, name) & (d->inum != 0))
+        if (!dir_namecmp(d->name, name) & (d->inum != 0))
         {
-            *poff = off;
+            if (poff != 0)
+                *poff = off;
             struct inode *ip = inode_get(dp->dev, d->inum);
             return ip;
         }

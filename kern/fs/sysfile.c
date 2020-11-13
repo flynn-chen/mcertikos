@@ -176,7 +176,42 @@ void sys_close(tf_t *tf)
  */
 void sys_fstat(tf_t *tf)
 {
-    // TODO
+    int fd = syscall_get_arg2(tf);
+    if (fd < 0 || fd > NOFILE)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+        return;
+    }
+
+    struct file_stat *user_fsp = (struct file_stat *)syscall_get_arg3(tf);
+    if ((unsigned int)user_fsp < VM_USERLO || (unsigned int)user_fsp + sizeof(struct file_stat) > VM_USERHI)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+
+    struct file *fp = tcb_get_openfiles(get_curid())[fd];
+    if (fp == 0 || fp->type == FD_NONE)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+        return;
+    }
+
+    struct file_stat kern_fs;
+    int state = file_stat(fp, &kern_fs);
+    if (state != 0)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+    }
+
+    pt_copyout(&kern_fs, get_curid(), (unsigned int)user_fsp, sizeof(struct file_stat));
+    syscall_set_retval1(tf, 0);
+    syscall_set_errno(tf, E_SUCC);
+    return;
 }
 
 /**

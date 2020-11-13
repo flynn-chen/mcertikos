@@ -137,8 +137,10 @@ static struct inode *namex(char *path, bool nameiparent, char *name)
             condition: path = "", name = 0 => TRUE | should be FALSE
             body: 
     */
+    KERN_DEBUG("path: %s\n", path);
     while ((path = skipelem(path, name)) != 0)
     {
+        KERN_DEBUG("path: %s\n", path);
         inode_lock(ip);
         if (ip->type != T_DIR)
         {
@@ -164,7 +166,7 @@ static struct inode *namex(char *path, bool nameiparent, char *name)
         inode_put(ip);
         return 0;
     }
-    inode_put(ip); // TODO: already put in line 154
+    // inode_put(ip); // TODO: if namei is SUPPOSED to increment ref, then delete this - Yes haha
     return ip;
 }
 
