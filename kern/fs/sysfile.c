@@ -30,7 +30,7 @@ static int fdalloc(struct file *f)
     struct file **openfiles = tcb_get_openfiles(pid);
     for (int i = 0; i < NOFILE; i++)
     {
-        if (openfiles[i]->type == FD_NONE)
+        if (openfiles[i] == 0)
         {
             tcb_set_openfiles(pid, i, f);
             return i;
@@ -49,10 +49,11 @@ static int fdalloc(struct file *f)
  * functions shall return -1 and set errno E_BADF to indicate the error.
  */
 
+char buff[10000];
 void sys_read(tf_t *tf)
 {
     int fd = syscall_get_arg2(tf);
-    if (fd < 0 || fd > NOFILE)
+    if (fd < 0 || fd >= NOFILE)
     {
         syscall_set_retval1(tf, -1);
         syscall_set_errno(tf, E_BADF);
@@ -60,13 +61,13 @@ void sys_read(tf_t *tf)
     }
 
     size_t n = syscall_get_arg4(tf);
-    if (n < 0)
+    if (n < 0 || n > 10000)
     {
         syscall_set_retval1(tf, -1);
         syscall_set_errno(tf, E_INVAL_ADDR);
         return;
     }
-    char buff[n];
+    // char buff[n];
 
     struct file *fp = tcb_get_openfiles(get_curid())[fd];
     if (fp == 0 || fp->type == FD_NONE || fp->ip == 0)
@@ -84,7 +85,9 @@ void sys_read(tf_t *tf)
         return;
     }
 
+    // KERN_DEBUG("reading the file\n");
     int num_read = file_read(fp, buff, n);
+    // KERN_DEBUG("character read %d the file\n", num_read);
 
     // size_t pt_copyout(void *kva, uint32_t pmap_id, uintptr_t uva, size_t len)
     pt_copyout(buff, get_curid(), uva, num_read);
@@ -104,7 +107,7 @@ void sys_read(tf_t *tf)
 void sys_write(tf_t *tf)
 {
     int fd = syscall_get_arg2(tf);
-    if (fd < 0 || fd > NOFILE)
+    if (fd < 0 || fd >= NOFILE)
     {
         syscall_set_retval1(tf, -1);
         syscall_set_errno(tf, E_BADF);
@@ -112,13 +115,13 @@ void sys_write(tf_t *tf)
     }
 
     size_t n = syscall_get_arg4(tf);
-    if (n < 0)
+    if (n < 0 || n > 10000)
     {
         syscall_set_retval1(tf, -1);
         syscall_set_errno(tf, E_INVAL_ADDR);
         return;
     }
-    char buff[n];
+    // char buff[n];
 
     struct file *fp = tcb_get_openfiles(get_curid())[fd];
     if (fp == 0 || fp->type == FD_NONE || fp->ip == 0)
@@ -137,8 +140,8 @@ void sys_write(tf_t *tf)
     }
 
     pt_copyin(get_curid(), uva, buff, n);
-    int num_read = file_write(fp, buff, n);
-    syscall_set_retval1(tf, num_read);
+    int num_write = file_write(fp, buff, n);
+    syscall_set_retval1(tf, num_write);
     syscall_set_errno(tf, E_SUCC);
 }
 
@@ -149,7 +152,7 @@ void sys_write(tf_t *tf)
 void sys_close(tf_t *tf)
 {
     int fd = syscall_get_arg2(tf);
-    if (fd < 0 || fd > NOFILE)
+    if (fd < 0 || fd >= NOFILE)
     {
         syscall_set_retval1(tf, -1);
         syscall_set_errno(tf, E_BADF);
@@ -177,7 +180,7 @@ void sys_close(tf_t *tf)
 void sys_fstat(tf_t *tf)
 {
     int fd = syscall_get_arg2(tf);
-    if (fd < 0 || fd > NOFILE)
+    if (fd < 0 || fd >= NOFILE)
     {
         syscall_set_retval1(tf, -1);
         syscall_set_errno(tf, E_BADF);
@@ -304,6 +307,7 @@ void sys_unlink(tf_t *tf)
 
     pt_copyin(get_curid(), syscall_get_arg2(tf), path, length);
     path[length] = '\0';
+    // KERN_DEBUG("unlinking: %s\n", path);
 
     if ((dp = nameiparent(path, name)) == 0)
     {
@@ -311,9 +315,13 @@ void sys_unlink(tf_t *tf)
         return;
     }
 
+    // KERN_DEBUG("got parent %d with ref %d to unlink: %s\n", dp->inum, dp->ref, name);
+
     begin_trans();
 
     inode_lock(dp);
+
+    // KERN_DEBUG("locked parent to unlink: %s\n", path);
 
     // Cannot unlink "." or "..".
     if (dir_namecmp(name, ".") == 0 || dir_namecmp(name, "..") == 0)
@@ -322,6 +330,8 @@ void sys_unlink(tf_t *tf)
     if ((ip = dir_lookup(dp, name, &off)) == 0)
         goto bad;
     inode_lock(ip);
+
+    // KERN_DEBUG("locked inode with ref %d to unlink: %s\n", ip->ref, path);
 
     if (ip->nlink < 1)
         KERN_PANIC("unlink: nlink < 1");
@@ -420,14 +430,17 @@ void sys_open(tf_t *tf)
     pt_copyin(get_curid(), syscall_get_arg2(tf), path, length);
     path[length] = '\0';
     omode = syscall_get_arg3(tf);
+    // KERN_DEBUG("opening: %s\n", path);
 
     if (omode & O_CREATE)
     {
         begin_trans();
         ip = create(path, T_FILE, 0, 0);
         commit_trans();
+        //KERN_DEBUG("created file\n");
         if (ip == 0)
         {
+            //KERN_DEBUG("file create failed\n");
             syscall_set_retval1(tf, -1);
             syscall_set_errno(tf, E_CREATE);
             return;
@@ -453,6 +466,7 @@ void sys_open(tf_t *tf)
 
     if ((f = file_alloc()) == 0 || (fd = fdalloc(f)) < 0)
     {
+        // KERN_DEBUG("disk operation error, f=%d, fd=%d\n", f, fd);
         if (f)
             file_close(f);
         inode_unlockput(ip);
@@ -462,6 +476,7 @@ void sys_open(tf_t *tf)
     }
     inode_unlock(ip);
 
+    // KERN_DEBUG("file creating\n");
     f->type = FD_INODE;
     f->ip = ip;
     f->off = 0;

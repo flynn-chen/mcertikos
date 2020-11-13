@@ -48,6 +48,7 @@ struct inode *dir_lookup(struct inode *dp, char *name, uint32_t *poff)
     char dst[dirent_size];
     for (off = 0; off < dp->size; off += dirent_size)
     {
+        // KERN_DEBUG("off: %d\n", off);
         num_read = inode_read(dp, dst, off, dirent_size);
         KERN_ASSERT(num_read == dirent_size);
 
@@ -58,6 +59,7 @@ struct inode *dir_lookup(struct inode *dp, char *name, uint32_t *poff)
         //  2. inum is not 0 (find an entry that is allocated)
         if (!dir_namecmp(d->name, name) & (d->inum != 0))
         {
+            // KERN_DEBUG("name: %d\n", name);
             if (poff != 0)
                 *poff = off;
             struct inode *ip = inode_get(dp->dev, d->inum);

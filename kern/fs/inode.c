@@ -95,7 +95,11 @@ struct inode *inode_get(uint32_t dev, uint32_t inum)
     empty = 0;
     for (ip = &inode_cache.inode[0]; ip < &inode_cache.inode[NINODE]; ip++)
     {
-        if (ip->ref > 0 && ip->dev == dev && ip->inum == inum)
+        // KERN_DEBUG("looking for root: %d %d %d %d %d %d %d\n",
+        //            ip->ref, ip->dev, ip->inum,
+        //            dev, inum,
+        //            ip->dev == dev, ip->inum == inum);
+        if ((ip->ref > 0) && (ip->dev == dev) && (ip->inum == inum))
         {
             ip->ref++;
             spinlock_release(&inode_cache.lock);

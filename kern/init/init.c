@@ -44,7 +44,8 @@ static void kern_main_ap(void)
 
     set_pcpu_boot_info(cpu_idx, TRUE);
 
-    while (all_ready == FALSE);
+    while (all_ready == FALSE)
+        ;
 
     KERN_INFO("[AP%d KERN] kernel_main_ap\n", cpu_idx);
 

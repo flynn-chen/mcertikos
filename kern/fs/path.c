@@ -87,6 +87,7 @@ static char *skipelem(char *path, char *name)
 static struct inode *namex(char *path, bool nameiparent, char *name)
 {
     struct inode *ip, *next;
+    unsigned int off;
 
     // If path is a full path, get the pointer to the root inode. Otherwise get
     // the inode corresponding to the current working directory.
@@ -137,10 +138,10 @@ static struct inode *namex(char *path, bool nameiparent, char *name)
             condition: path = "", name = 0 => TRUE | should be FALSE
             body: 
     */
-    KERN_DEBUG("path: %s\n", path);
+    // KERN_DEBUG("path: %s\n", path);
     while ((path = skipelem(path, name)) != 0)
     {
-        KERN_DEBUG("path: %s\n", path);
+        // KERN_DEBUG("path: %s, ip: %d\n", path, ip);
         inode_lock(ip);
         if (ip->type != T_DIR)
         {
@@ -149,11 +150,11 @@ static struct inode *namex(char *path, bool nameiparent, char *name)
         }
         if (nameiparent && *path == '\0')
         {
-            inode_unlockput(ip);
+            inode_unlock(ip);
             return ip;
         }
 
-        next = dir_lookup(ip, name, 0);
+        next = dir_lookup(ip, name, &off);
         inode_unlockput(ip);
         if (next == 0)
         {
