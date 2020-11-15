@@ -6,847 +6,225 @@
 #include <gcc.h>
 
 #define exit(...) return __VA_ARGS__
+#define CMD_NUM_ARGS 4
+#define CMD_BUFF_SIZE 1024
+#define DIRSIZ 14
 
-char buf[8192];
-char name[3];
-char *echoargv[] = {"echo", "ALL", "TESTS", "PASSED", 0};
+char buff[CMD_BUFF_SIZE];
+char command_args[CMD_NUM_ARGS][CMD_BUFF_SIZE];
+// 1 command: rm, ls etc.
+// 2 flags: -r
+// 3 target 1: filename, dirname
+// 4 target 2: filename, dirname
 
-// Simple file system tests
-
-void smallfile(void)
+int extract_cmd()
 {
-    int fd;
-    int i;
+    unsigned int command_idx = 0;
+    char *front, *end;
+    int len;
 
-    printf("=====small file test=====\n");
-    fd = open("small", O_CREATE | O_RDWR);
-    if (fd >= 0)
+    // extract arguments
+    end = buff;
+    for (command_idx = 0; command_idx < CMD_NUM_ARGS && *end != '\0'; command_idx++)
     {
-        printf("create small succeeded; ok, fd: %d\n", fd);
-    }
-    else
-    {
-        printf("error: create small failed!\n");
-        exit();
-    }
-    for (i = 0; i < 100; i++)
-    {
-        if (write(fd, "aaaaaaaaaa", 10) != 10)
+        front = end;
+        while (*front == ' ') //find first non-space element
         {
-            printf("error: write aa %d new file failed\n", i);
-            exit();
+            front++;
         }
-        if (write(fd, "bbbbbbbbbb", 10) != 10)
-        {
-            printf("error: write bb %d new file failed\n", i);
-            exit();
-        }
-    }
-    printf("writes ok\n");
-    close(fd);
-    fd = open("small", O_RDONLY);
-    if (fd >= 0)
-    {
-        printf("open small succeeded ok\n");
-    }
-    else
-    {
-        printf("error: open small failed!\n");
-        exit();
-    }
-    i = read(fd, buf, 2000);
-    if (i == 2000)
-    {
-        printf("read succeeded ok\n");
-    }
-    else
-    {
-        printf("read failed\n");
-        exit();
-    }
-    close(fd);
 
-    if (unlink("small") < 0)
-    {
-        printf("unlink small failed\n");
-        exit();
+        end = front;
+        while (*end != ' ' && *end != '\0') //find the next space or hit the end
+        {
+            end++;
+        }
+
+        len = end - front; //calculate length of path element
+        if (len + 1 > CMD_BUFF_SIZE)
+        {
+            return -1;
+        }
+        memmove(command_args[command_idx], front, len);
+        command_args[command_idx][len] = '\0';
     }
-    printf("=====small file test ok=====\n\n");
+    while (*end != '\0') //find the next space or hit the end
+    {
+        end++;
+        if (*end != ' ')
+            return -2;
+    }
+    return command_idx;
 }
 
-void bigfile1(void)
+void zero_cmd_buff()
 {
-    int i, fd, n;
-
-    printf("=====big files test=====\n");
-
-    fd = open("big", O_CREATE | O_RDWR);
-    if (fd < 0)
+    memzero(buff, CMD_BUFF_SIZE);
+    for (unsigned int command_idx = 0; command_idx < CMD_NUM_ARGS; command_idx++)
     {
-        printf("error: create big failed!\n");
-        exit();
+        memzero(command_args[command_idx], CMD_BUFF_SIZE);
+    }
+}
+
+char pwd[CMD_BUFF_SIZE] = "/";
+char temp_pwd[CMD_BUFF_SIZE] = "/";
+// in the format of /a/c/ always followed by trailing /
+
+int change_to_parent_dir(void)
+{
+    int current_pwd_len = strlen(pwd);
+    if (current_pwd_len == 1)
+    {
+        return 0;
     }
 
-    for (i = 0; i < MAXFILE; i++)
+    for (current_pwd_len = current_pwd_len - 2; current_pwd_len >= 0; current_pwd_len--)
     {
-        ((int *)buf)[0] = i;
-        if (write(fd, buf, 512) != 512)
+        if (pwd[current_pwd_len] == '/')
+            break;
+    }
+    pwd[current_pwd_len] = '\0';
+    return 0;
+}
+
+// pwd = /a/b
+// child_dir = d/c////e
+int append_to_pwd(char *child_dir)
+{
+    memmove(temp_pwd, pwd, strlen(pwd));
+    unsigned int current_pwd_len = strlen(temp_pwd);
+    char *front, *end;
+    int len;
+
+    end = child_dir;
+    while (end != 0 && *end != '\0')
+    {
+        front = end;
+        while (*end != '/' && *end != '\0') //find the next slash or hit the end
         {
-            printf("error: write big file failed\n", i);
-            exit();
+            end++;
         }
-    }
-
-    close(fd);
-
-    fd = open("big", O_RDONLY);
-    if (fd < 0)
-    {
-        printf("error: open big failed!\n");
-        exit();
-    }
-
-    n = 0;
-    for (;;)
-    {
-        i = read(fd, buf, 512);
-        if (i == 0)
+        len = end - front; //calculate length of path element
+        if (len <= 0)      // if there is not path element
         {
-            if (n == MAXFILE - 1)
-            {
-                printf("read only %d blocks from big", n);
-                exit();
-            }
             break;
         }
-        else if (i != 512)
+        if (len > DIRSIZ) //if path element exceeds size
         {
-            printf("read failed %d\n", i);
-            exit();
+            len = DIRSIZ - 1;
         }
-        if (((int *)buf)[0] != n)
+        if (current_pwd_len + len + 1 > CMD_BUFF_SIZE)
         {
-            printf("read content of block %d is %d\n", n, ((int *)buf)[0]);
-            exit();
+            printf("child path does not fit in pwd buffer\n");
+            return -1;
         }
-        n++;
+        memmove(&temp_pwd[current_pwd_len], front, len); //move from path to name
+        temp_pwd[current_pwd_len + len] = '\0';          //add string terminator
+        current_pwd_len += len;
+        while (*end == '/') //ignore trailing slashes
+        {
+            end++;
+        }
     }
+
+    memmove(pwd, temp_pwd, strlen(temp_pwd));
+    return 0;
+}
+
+int is_dir(char *path)
+{
+    int fd, is_dir;
+    if (file_exist(path))
+    {
+        fd = open(path, O_RDONLY);
+    }
+    is_dir = sys_is_dir(fd);
     close(fd);
-    if (unlink("big") < 0)
-    {
-        printf("unlink big failed\n");
-        exit();
-    }
-    printf("=====big files ok=====\n\n");
+    return is_dir;
 }
 
-void createtest(void)
-{
-    int i, fd;
-
-    printf("=====many creates, followed by unlink test=====\n");
-
-    name[0] = 'a';
-    name[2] = '\0';
-    for (i = 0; i < 52; i++)
-    {
-        name[1] = '0' + i;
-        fd = open(name, O_CREATE | O_RDWR);
-        close(fd);
-    }
-    printf("=====many created=====\n");
-    name[0] = 'a';
-    name[2] = '\0';
-    for (i = 0; i < 52; i++)
-    {
-        name[1] = '0' + i;
-        unlink(name);
-    }
-    printf("=====many creates, followed by unlink; ok=====\n\n");
-}
-
-void rmdot(void)
-{
-    printf("=====rmdot test=====\n");
-    if (mkdir("dots") != 0)
-    {
-        printf("mkdir dots failed\n");
-        exit();
-    }
-    if (chdir("dots") != 0)
-    {
-        printf("chdir dots failed\n");
-        exit();
-    }
-    if (unlink(".") == 0)
-    {
-        printf("rm . worked!\n");
-        exit();
-    }
-    if (unlink("..") == 0)
-    {
-        printf("rm .. worked!\n");
-        exit();
-    }
-    if (chdir("/") != 0)
-    {
-        printf("chdir '/' failed\n");
-        exit();
-    }
-    if (unlink("dots/.") == 0)
-    {
-        printf("unlink dots/. worked!\n");
-        exit();
-    }
-    if (unlink("dots/..") == 0)
-    {
-        printf("unlink dots/.. worked!\n");
-        exit();
-    }
-    if (unlink("dots") != 0)
-    {
-        printf("unlink dots failed!\n");
-        exit();
-    }
-    printf("=====rmdot ok=====\n\n");
-}
-
-void fourteen(void)
+int file_exist(char *path)
 {
     int fd;
-
-    // DIRSIZ is 14.
-    printf("=====fourteen test=====\n");
-
-    // make dir /a
-    if (mkdir("12345678901234") != 0)
+    fd = open(path, O_RDONLY);
+    if (fd == -1)
     {
-        printf("mkdir 12345678901234 failed\n");
-        exit();
-    }
-    // make dir /a/b
-    if (mkdir("12345678901234/123456789012345") != 0)
-    {
-        printf("mkdir 12345678901234/123456789012345 failed\n");
-        exit();
-    }
-    // make file /A/b/c1
-    fd = open("123456789012345/123456789012345/123456789012345", O_CREATE);
-    if (fd < 0)
-    {
-        printf("create 123456789012345/123456789012345/123456789012345 failed\n"); // <----
-        exit();
+        return 0;
     }
     close(fd);
-    // make file /a/B/c2
-    fd = open("12345678901234/12345678901234/12345678901234", 0);
-    if (fd < 0)
-    {
-        printf("open 12345678901234/12345678901234/12345678901234 failed\n");
-        exit();
-    }
-    close(fd);
-
-    if (mkdir("12345678901234/12345678901234") == 0)
-    {
-        printf("mkdir 12345678901234/12345678901234 succeeded!\n");
-        exit();
-    }
-    if (mkdir("12345678901234/123456789012345") == 0)
-    {
-        printf("mkdir 12345678901234/123456789012345 succeeded!\n");
-        exit();
-    }
-
-    printf("=====fourteen ok=====\n\n");
-}
-
-void bigfile2(void)
-{
-    int fd, i, total, cc;
-
-    printf("=====bigfile test=====\n");
-
-    unlink("bigfile");
-    fd = open("bigfile", O_CREATE | O_RDWR);
-    if (fd < 0)
-    {
-        printf("cannot create bigfile");
-        exit();
-    }
-    for (i = 0; i < 20; i++)
-    {
-        memset(buf, i, 600);
-        if (write(fd, buf, 600) != 600)
-        {
-            printf("write bigfile failed\n");
-            exit();
-        }
-    }
-    close(fd);
-
-    fd = open("bigfile", 0);
-    if (fd < 0)
-    {
-        printf("cannot open bigfile\n");
-        exit();
-    }
-    total = 0;
-    for (i = 0;; i++)
-    {
-        cc = read(fd, buf, 300);
-        if (cc < 0)
-        {
-            printf("read bigfile failed\n");
-            exit();
-        }
-        if (cc == 0)
-            break;
-        if (cc != 300)
-        {
-            printf("short read bigfile\n");
-            exit();
-        }
-        if (buf[0] != i / 2 || buf[299] != i / 2)
-        {
-            printf("read bigfile wrong data\n");
-            exit();
-        }
-        total += cc;
-    }
-    close(fd);
-    if (total != 20 * 600)
-    {
-        printf("read bigfile wrong total\n");
-        exit();
-    }
-    unlink("bigfile");
-
-    printf("=====bigfile test ok=====\n\n");
-}
-
-void subdir(void)
-{
-    int fd, cc;
-
-    printf("=====subdir test=====\n");
-
-    unlink("ff");
-    if (mkdir("dd") != 0)
-    {
-        printf("subdir mkdir dd failed\n");
-        exit();
-    }
-
-    fd = open("dd/ff", O_CREATE | O_RDWR);
-    if (fd < 0)
-    {
-        printf("create dd/ff failed\n");
-        exit();
-    }
-    write(fd, "ff", 2);
-    printf("just wrote ff into fd = %d\n", fd);
-    close(fd);
-
-    if (unlink("dd") >= 0)
-    {
-        printf("unlink dd (non-empty dir) succeeded!\n");
-        exit();
-    }
-
-    if (mkdir("dd/dd") != 0)
-    {
-        printf("subdir mkdir dd/dd failed\n");
-        exit();
-    }
-
-    fd = open("dd/dd/ff", O_CREATE | O_RDWR);
-    if (fd < 0)
-    {
-        printf("create dd/dd/ff failed\n");
-        exit();
-    }
-
-    write(fd, "FF", 2);
-    close(fd);
-
-    fd = open("dd/dd/../ff", 0);
-    if (fd < 0)
-    {
-        printf("open dd/dd/../ff failed\n");
-        exit();
-    }
-    cc = read(fd, buf, sizeof(buf));
-    if (cc != 2 || buf[0] != 'f')
-    {
-        printf("dd/dd/../ff wrong content\n");
-        exit();
-    }
-    close(fd);
-
-    if (link("dd/dd/ff", "dd/dd/ffff") != 0)
-    {
-        printf("link dd/dd/ff dd/dd/ffff failed\n");
-        exit();
-    }
-
-    if (unlink("dd/dd/ff") != 0)
-    {
-        printf("unlink dd/dd/ff failed\n");
-        exit();
-    }
-    if (open("dd/dd/ff", O_RDONLY) >= 0)
-    {
-        printf("open (unlinked) dd/dd/ff succeeded\n");
-        exit();
-    }
-
-    if (chdir("dd") != 0)
-    {
-        printf("chdir dd failed\n");
-        exit();
-    }
-    if (chdir("dd/../../dd") != 0)
-    {
-        printf("chdir dd/../../dd failed\n");
-        exit();
-    }
-    if (chdir("dd/../../../dd") != 0)
-    {
-        printf("chdir dd/../../dd failed\n");
-        exit();
-    }
-    if (chdir("./..") != 0)
-    {
-        printf("chdir ./.. failed\n");
-        exit();
-    }
-
-    fd = open("dd/dd/ffff", 0);
-    if (fd < 0)
-    {
-        printf("open dd/dd/ffff failed\n");
-        exit();
-    }
-    if (read(fd, buf, sizeof(buf)) != 2)
-    {
-        printf("read dd/dd/ffff wrong len\n");
-        exit();
-    }
-    close(fd);
-
-    if (open("dd/dd/ff", O_RDONLY) >= 0)
-    {
-        printf("open (unlinked) dd/dd/ff succeeded!\n");
-        exit();
-    }
-
-    if (open("dd/ff/ff", O_CREATE | O_RDWR) >= 0)
-    {
-        printf("create dd/ff/ff succeeded!\n");
-        exit();
-    }
-    if (open("dd/xx/ff", O_CREATE | O_RDWR) >= 0)
-    {
-        printf("create dd/xx/ff succeeded!\n");
-        exit();
-    }
-    if (open("dd", O_CREATE) >= 0)
-    {
-        printf("create dd succeeded!\n");
-        exit();
-    }
-    if (open("dd", O_RDWR) >= 0)
-    {
-        printf("open dd rdwr succeeded!\n");
-        exit();
-    }
-    if (open("dd", O_WRONLY) >= 0)
-    {
-        printf("open dd wronly succeeded!\n");
-        exit();
-    }
-    if (link("dd/ff/ff", "dd/dd/xx") == 0)
-    {
-        printf("link dd/ff/ff dd/dd/xx succeeded!\n");
-        exit();
-    }
-    if (link("dd/xx/ff", "dd/dd/xx") == 0)
-    {
-        printf("link dd/xx/ff dd/dd/xx succeeded!\n");
-        exit();
-    }
-    if (link("dd/ff", "dd/dd/ffff") == 0)
-    {
-        printf("link dd/ff dd/dd/ffff succeeded!\n");
-        exit();
-    }
-    if (mkdir("dd/ff/ff") == 0)
-    {
-        printf("mkdir dd/ff/ff succeeded!\n");
-        exit();
-    }
-    if (mkdir("dd/xx/ff") == 0)
-    {
-        printf("mkdir dd/xx/ff succeeded!\n");
-        exit();
-    }
-    if (mkdir("dd/dd/ffff") == 0)
-    {
-        printf("mkdir dd/dd/ffff succeeded!\n");
-        exit();
-    }
-    if (unlink("dd/xx/ff") == 0)
-    {
-        printf("unlink dd/xx/ff succeeded!\n");
-        exit();
-    }
-    if (unlink("dd/ff/ff") == 0)
-    {
-        printf("unlink dd/ff/ff succeeded!\n");
-        exit();
-    }
-    if (chdir("dd/ff") == 0)
-    {
-        printf("chdir dd/ff succeeded!\n");
-        exit();
-    }
-    if (chdir("dd/xx") == 0)
-    {
-        printf("chdir dd/xx succeeded!\n");
-        exit();
-    }
-
-    if (unlink("dd/dd/ffff") != 0)
-    {
-        printf("unlink dd/dd/ff failed\n");
-        exit();
-    }
-    if (unlink("dd/ff") != 0)
-    {
-        printf("unlink dd/ff failed\n");
-        exit();
-    }
-    if (unlink("dd") == 0)
-    {
-        printf("unlink non-empty dd succeeded!\n");
-        exit();
-    }
-    if (unlink("dd/dd") < 0)
-    {
-        printf("unlink dd/dd failed\n");
-        exit();
-    }
-    if (unlink("dd") < 0)
-    {
-        printf("unlink dd failed\n");
-        exit();
-    }
-
-    printf("=====subdir ok=====\n\n");
-}
-
-void linktest(void)
-{
-    int fd;
-
-    printf("=====linktest=====\n");
-
-    unlink("lf1");
-    unlink("lf2");
-
-    fd = open("lf1", O_CREATE | O_RDWR);
-    if (fd < 0)
-    {
-        printf("create lf1 failed\n");
-        exit();
-    }
-    if (write(fd, "hello", 5) != 5)
-    {
-        printf("write lf1 failed\n");
-        exit();
-    }
-    close(fd);
-
-    if (link("lf1", "lf2") < 0)
-    {
-        printf("link lf1 lf2 failed\n");
-        exit();
-    }
-    unlink("lf1");
-
-    if (open("lf1", 0) >= 0)
-    {
-        printf("unlinked lf1 but it is still there!\n");
-        exit();
-    }
-
-    fd = open("lf2", 0);
-    if (fd < 0)
-    {
-        printf("open lf2 failed\n");
-        exit();
-    }
-    if (read(fd, buf, sizeof(buf)) != 5)
-    {
-        printf("read lf2 failed\n");
-        exit();
-    }
-    close(fd);
-
-    if (link("lf2", "lf2") >= 0)
-    {
-        printf("link lf2 lf2 succeeded! oops\n");
-        exit();
-    }
-
-    unlink("lf2");
-    if (link("lf2", "lf1") >= 0)
-    {
-        printf("link non-existant succeeded! oops\n");
-        exit();
-    }
-
-    if (link(".", "lf1") >= 0)
-    {
-        printf("link . lf1 succeeded! oops\n");
-        exit();
-    }
-
-    printf("=====linktest ok=====\n\n");
-}
-
-// Can I unlink a file and still read it?
-void unlinkread(void)
-{
-    int fd, fd1;
-
-    printf("=====unlinkread test=====\n");
-    fd = open("unlinkread", O_CREATE | O_RDWR);
-    if (fd < 0)
-    {
-        printf("create unlinkread failed\n");
-        exit();
-    }
-    write(fd, "hello", 5);
-    close(fd);
-
-    fd = open("unlinkread", O_RDWR);
-    if (fd < 0)
-    {
-        printf("open unlinkread failed\n");
-        exit();
-    }
-    if (unlink("unlinkread") != 0)
-    {
-        printf("unlink unlinkread failed\n");
-        exit();
-    }
-
-    fd1 = open("unlinkread", O_CREATE | O_RDWR);
-    write(fd1, "yyy", 3);
-    close(fd1);
-
-    if (read(fd, buf, sizeof(buf)) != 5)
-    {
-        printf("unlinkread read failed");
-        exit();
-    }
-    if (buf[0] != 'h')
-    {
-        printf("unlinkread wrong data\n");
-        exit();
-    }
-    if (write(fd, buf, 10) != 10)
-    {
-        printf("unlinkread write failed\n");
-        exit();
-    }
-    close(fd);
-    unlink("unlinkread");
-    printf("=====unlinkread ok=====\n\n");
-}
-
-void dirfile(void)
-{
-    int fd;
-
-    printf("=====dir vs file=====\n");
-
-    fd = open("dirfile", O_CREATE);
-    if (fd < 0)
-    {
-        printf("create dirfile failed\n");
-        exit();
-    }
-    close(fd);
-    if (chdir("dirfile") == 0)
-    {
-        printf("chdir dirfile succeeded!\n");
-        exit();
-    }
-    fd = open("dirfile/xx", 0);
-    if (fd >= 0)
-    {
-        printf("create dirfile/xx succeeded!\n");
-        exit();
-    }
-    fd = open("dirfile/xx", O_CREATE);
-    if (fd >= 0)
-    {
-        printf("create dirfile/xx succeeded!\n");
-        exit();
-    }
-    if (mkdir("dirfile/xx") == 0)
-    {
-        printf("mkdir dirfile/xx succeeded!\n");
-        exit();
-    }
-    if (unlink("dirfile/xx") == 0)
-    {
-        printf("unlink dirfile/xx succeeded!\n");
-        exit();
-    }
-    if (link("README", "dirfile/xx") == 0)
-    {
-        printf("link to dirfile/xx succeeded!\n");
-        exit();
-    }
-    if (unlink("dirfile") != 0)
-    {
-        printf("unlink dirfile failed!\n");
-        exit();
-    }
-
-    fd = open(".", O_RDWR);
-    if (fd >= 0)
-    {
-        printf("open . for writing succeeded!\n");
-        exit();
-    }
-    fd = open(".", 0);
-    if (write(fd, "x", 1) > 0)
-    {
-        printf("write . succeeded!\n");
-        exit();
-    }
-    close(fd);
-
-    printf("=====dir vs file OK=====\n\n");
-}
-
-// Test that iput() is called at the end of _namei()
-void iref(void)
-{
-    int i, fd;
-
-    printf("=====empty file name=====\n");
-
-    // the 50 is NINODE
-    for (i = 0; i < 50 + 1; i++)
-    {
-        if (mkdir("irefd") != 0)
-        {
-            printf("mkdir irefd failed\n");
-            exit();
-        }
-        if (chdir("irefd") != 0)
-        {
-            printf("chdir irefd failed\n");
-            exit();
-        }
-
-        mkdir("");
-        link("README", "");
-        fd = open("", O_CREATE);
-        if (fd >= 0)
-            close(fd);
-        fd = open("xx", O_CREATE);
-        if (fd >= 0)
-            close(fd);
-        unlink("xx");
-    }
-
-    chdir("/");
-    printf("=====empty file name OK=====\n\n");
-}
-
-char namel[10];
-
-// Directory that uses indirect blocks
-void bigdir(void)
-{
-    int i, fd;
-
-    printf("=====bigdir test=====\n");
-    unlink("bd");
-
-    fd = open("bd", O_CREATE);
-    if (fd < 0)
-    {
-        printf("bigdir create failed\n");
-        exit();
-    }
-    close(fd);
-
-    for (i = 0; i < 500; i++)
-    {
-        namel[0] = 'x';
-        namel[1] = '0' + (i / 64);
-        namel[2] = '0' + (i % 64);
-        namel[3] = '\0';
-        if (link("bd", namel) != 0)
-        {
-            printf("bigdir link failed\n");
-            exit();
-        }
-    }
-
-    unlink("bd");
-    for (i = 0; i < 500; i++)
-    {
-        namel[0] = 'x';
-        namel[1] = '0' + (i / 64);
-        namel[2] = '0' + (i % 64);
-        namel[3] = '\0';
-        if (unlink(namel) != 0)
-        {
-            printf("bigdir unlink failed");
-            exit();
-        }
-    }
-
-    printf("=====bigdir ok=====\n\n");
+    return 1;
 }
 
 int main(int argc, char *argv[])
 {
-    printf("*******usertests starting*******\n\n");
-
-    printf("=====test file usertests.ran does not exists=====\n");
-
-    if (open("usertests.ran", O_RDONLY) >= 0)
+    while (1)
     {
-        printf("already ran user tests (file usertests.ran exists) "
-               "-- recreate certikos_disk.img\n");
-        exit(1);
+        zero_cmd_buff();
+        printf("> ");
+        readline(buff);
+        int cmd_extract_status = extract_cmd();
+        int cmd_ret_val = 0;
+        switch (cmd_extract_status)
+        {
+        case 0:
+            printf("no arguments specified\n");
+        case -1:
+            printf("argument element too long\n");
+            continue;
+        case -2:
+            printf("too many arguments\n");
+            continue;
+        }
+
+        for (unsigned int command_idx = 0; command_idx < CMD_NUM_ARGS; command_idx++)
+        {
+            printf("argument #%d length: %d: %s \n", command_idx, command_args[command_idx], strlen(command_args[command_idx]));
+        }
+
+        if (!strcmp(command_args[0], "touch"))
+        {
+            if (cmd_extract_status != 2)
+            {
+                printf("wrong arguments for touch with %d argument\n", cmd_extract_status);
+                continue;
+            }
+            cmd_ret_val = open(command_args[1], O_CREATE | O_RDWR);
+            if (cmd_ret_val < 0)
+            {
+                printf("%s %s failed\n", command_args[0], command_args[1]);
+            }
+            close(cmd_ret_val);
+            continue;
+        }
+
+        if (!strcmp(command_args[0], "mkdir"))
+        {
+            if (cmd_extract_status != 2)
+            {
+                printf("wrong arguments for mkdir with %d argument\n", cmd_extract_status);
+                continue;
+            }
+            cmd_ret_val = mkdir(command_args[1]);
+            if (!cmd_ret_val)
+            {
+                printf("%s %s failed\n", command_args[0], command_args[1]);
+            }
+            continue;
+        }
+
+        if (!strcmp(command_args[0], "chdir"))
+        {
+            if (cmd_extract_status != 2)
+            {
+                printf("wrong arguments for chdir\n");
+                continue;
+            }
+            cmd_ret_val = chdir(command_args[1]);
+            if (!cmd_ret_val)
+            {
+                printf("%s %s failed\n", command_args[0], command_args[1]);
+            }
+            continue;
+        }
     }
-    printf("=====test file usertests.ran does not exists: ok\n\n");
-    close(open("usertests.ran", O_CREATE));
-
-    smallfile();
-    bigfile1();
-    createtest();
-
-    rmdot();
-    fourteen();
-    bigfile2();
-    subdir();
-    linktest();
-    unlinkread();
-    dirfile();
-    iref();
-    bigdir(); // slow
-    printf("*******end of tests*******\n");
     return 0;
 }

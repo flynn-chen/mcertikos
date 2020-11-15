@@ -6,7 +6,8 @@
 
 #define MAX_BUF 512
 
-#define getc()         sys_getc()
+#define getc() sys_getc()
+#define readline(buff) sys_readline(buff)
 #define puts(str, len) sys_puts((str), (len))
 
 /*
@@ -21,4 +22,4 @@ void printfmt(void (*f)(int, void *), void *buf, const char *fmt, ...);
 void vprintfmt(void (*f)(int, void *), void *buf, const char *fmt,
                va_list ap);
 
-#endif  /* _USER_STDIO_H_ */
+#endif /* _USER_STDIO_H_ */

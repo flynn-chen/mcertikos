@@ -221,4 +221,23 @@ static gcc_inline int sys_chdir(char *path)
   return errno ? -1 : 0;
 }
 
+static gcc_inline int sys_readline(char *buff)
+{
+  int errno, ret;
+  int length = strlen(buff);
+  if (length > 1024)
+  {
+    return -1;
+  }
+
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(ret)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_readline),
+                 "b"(buff)
+               : "cc", "memory");
+
+  return errno ? -1 : 0;
+}
+
 #endif /* !_USER_SYSCALL_H_ */

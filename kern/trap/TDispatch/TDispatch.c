@@ -14,7 +14,8 @@ void syscall_dispatch(tf_t *tf)
 
     nr = syscall_get_arg1(tf);
 
-    switch (nr) {
+    switch (nr)
+    {
     case SYS_puts:
         /*
          * Output a string to the screen.
@@ -90,6 +91,9 @@ void syscall_dispatch(tf_t *tf)
         break;
     case SYS_stat:
         sys_fstat(tf);
+        break;
+    case SYS_readline:
+        sys_readline(tf);
         break;
     default:
         syscall_set_errno(tf, E_INVAL_CALLNR);

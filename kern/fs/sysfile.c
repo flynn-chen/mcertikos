@@ -534,3 +534,67 @@ void sys_chdir(tf_t *tf)
     tcb_set_cwd(pid, ip);
     syscall_set_errno(tf, E_SUCC);
 }
+
+/**
+ * Return Value: Upon successful completion, 0 shall be returned; otherwise, -1
+ * shall be returned and errno E_BADF set to indicate the error.
+ */
+char *ls_buff[10000];
+void sys_ls(tf_t *tf)
+{
+    unsigned int uva = syscall_get_arg2(tf); //check user address doesn't falls in kernel mem
+    size_t n = syscall_get_arg2(tf);
+    if (n < 0 || n > 10000)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+    if (uva < VM_USERLO || uva + n > VM_USERHI)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+
+    struct inode *dp = (struct inode *)tcb_get_cwd(cur_pid);
+    if (isdirempty(dp)) //empty directory
+    {
+        syscall_set_retval1(tf, 0);
+        syscall_set_errno(tf, E_SUCC);
+        return 0;
+    }
+
+    struct dirent de;
+    int file_length;
+    char *front = ls_buff; // char buffer to store file output i.e. "README.md file.py ..."
+    for (unsigned int off = 0; off < dp->size; off += sizeof(de))
+    {
+        if (inode_read(dp, (char *)&de, off, de_size) != de_size)
+        {
+            KERN_PANIC("sys_ls: readi");
+        }
+        if (de.inum == 0)
+        {
+            continue;
+        }
+
+        file_length = front - ls_buff;
+        if (file_length >= DIRSIZE)
+        {
+            file_length = DIRSIZE - 1;
+        }
+        strncpy(front, de.name, file_length);
+        front += file_length;
+        *(front++) = ' ';
+    }
+
+    int buff_length = front - ls_buff;
+    if (buff_length >= n)
+    {
+        buff_length = n - 1
+    }
+    pt_copyout(ls_buff, get_curid(), uva, n);
+    syscall_set_retval1(tf, 0);
+    syscall_set_errno(tf, E_SUCC);
+}

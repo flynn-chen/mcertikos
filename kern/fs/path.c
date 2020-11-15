@@ -64,7 +64,7 @@ static char *skipelem(char *path, char *name)
     {
         return 0;
     }
-    if (len > DIRSIZ) //if path element exceeds size
+    if (len >= DIRSIZ) //if path element exceeds size
     {
         len = DIRSIZ - 1;
     }

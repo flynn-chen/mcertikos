@@ -27,13 +27,14 @@
 
 #define T_SYSCALL 48
 
-enum __syscall_nr {
+enum __syscall_nr
+{
     /*
      * common system calls
      */
-    SYS_puts = 0,   /* output a string to the screen */
-    SYS_spawn,      /* create a new process */
-    SYS_yield,      /* yield to another process */
+    SYS_puts = 0, /* output a string to the screen */
+    SYS_spawn,    /* create a new process */
+    SYS_yield,    /* yield to another process */
     SYS_open,
     SYS_close,
     SYS_read,
@@ -43,25 +44,27 @@ enum __syscall_nr {
     SYS_link,
     SYS_unlink,
     SYS_stat,
+    SYS_readline,
 
-    MAX_SYSCALL_NR  /* XXX: always put it at the end of __syscall_nr */
+    MAX_SYSCALL_NR /* XXX: always put it at the end of __syscall_nr */
 };
 
-enum __error_nr {
-    E_SUCC,          /* no errors */
-    E_MEM,           /* memory failure */
+enum __error_nr
+{
+    E_SUCC, /* no errors */
+    E_MEM,  /* memory failure */
     E_IPC,
-    E_INVAL_CALLNR,  /* invalid syscall number */
-    E_INVAL_ADDR,    /* invalid address */
-    E_INVAL_PID,     /* invalid process ID */
+    E_INVAL_CALLNR, /* invalid syscall number */
+    E_INVAL_ADDR,   /* invalid address */
+    E_INVAL_PID,    /* invalid process ID */
     E_INVAL_REG,
     E_INVAL_SEG,
     E_INVAL_EVENT,
     E_INVAL_PORT,
     E_INVAL_HVM,
     E_INVAL_CHID,
-    E_INVAL_ID,      /* general invalid id */
-    E_DISK_OP,       /* disk operation failure */
+    E_INVAL_ID, /* general invalid id */
+    E_DISK_OP,  /* disk operation failure */
     E_HVM_VMRUN,
     E_HVM_MMAP,
     E_HVM_REG,
@@ -74,27 +77,48 @@ enum __error_nr {
     E_EXCEEDS_QUOTA,
     E_MAX_NUM_CHILDEN_REACHED,
     E_INVAL_CHILD_ID,
-    E_NEXIST,        /* file does not exist */
-    E_CREATE,        /* file does not exist */
-    E_FNF,           /* file not found */
-    E_BADF,          /* bad file descriptor */
-    MAX_ERROR_NR     /* XXX: always put it at the end of __error_nr */
+    E_NEXIST,    /* file does not exist */
+    E_CREATE,    /* file does not exist */
+    E_FNF,       /* file not found */
+    E_BADF,      /* bad file descriptor */
+    MAX_ERROR_NR /* XXX: always put it at the end of __error_nr */
 };
 
-#define DISK_READ  0
+#define DISK_READ 0
 #define DISK_WRITE 1
 
-typedef enum {
-    GUEST_EAX, GUEST_EBX, GUEST_ECX, GUEST_EDX, GUEST_ESI, GUEST_EDI,
-    GUEST_EBP, GUEST_ESP, GUEST_EIP, GUEST_EFLAGS,
-    GUEST_CR0, GUEST_CR2, GUEST_CR3, GUEST_CR4,
+typedef enum
+{
+    GUEST_EAX,
+    GUEST_EBX,
+    GUEST_ECX,
+    GUEST_EDX,
+    GUEST_ESI,
+    GUEST_EDI,
+    GUEST_EBP,
+    GUEST_ESP,
+    GUEST_EIP,
+    GUEST_EFLAGS,
+    GUEST_CR0,
+    GUEST_CR2,
+    GUEST_CR3,
+    GUEST_CR4,
     GUEST_MAX_REG
 } guest_reg_t;
 
-typedef enum {
-    GUEST_CS, GUEST_DS, GUEST_ES, GUEST_FS, GUEST_GS, GUEST_SS,
-    GUEST_LDTR, GUEST_TR, GUEST_GDTR, GUEST_IDTR,
+typedef enum
+{
+    GUEST_CS,
+    GUEST_DS,
+    GUEST_ES,
+    GUEST_FS,
+    GUEST_GS,
+    GUEST_SS,
+    GUEST_LDTR,
+    GUEST_TR,
+    GUEST_GDTR,
+    GUEST_IDTR,
     GUEST_MAX_SEG_DESC
 } guest_seg_t;
 
-#endif  /* !_KERN_LIB_SYSCALL_H_ */
+#endif /* !_KERN_LIB_SYSCALL_H_ */

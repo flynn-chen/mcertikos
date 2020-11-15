@@ -5,6 +5,8 @@
 #include <lib/trap.h>
 #include <lib/syscall.h>
 #include <dev/intr.h>
+#include <dev/console.h>
+#include <lib/string.h>
 #include <pcpu/PCPUIntro/export.h>
 
 #include "import.h"
@@ -25,7 +27,8 @@ void sys_puts(tf_t *tf)
     str_uva = syscall_get_arg2(tf);
     str_len = syscall_get_arg3(tf);
 
-    if (!(VM_USERLO <= str_uva && str_uva + str_len <= VM_USERHI)) {
+    if (!(VM_USERLO <= str_uva && str_uva + str_len <= VM_USERHI))
+    {
         syscall_set_errno(tf, E_INVAL_ADDR);
         return;
     }
@@ -33,13 +36,15 @@ void sys_puts(tf_t *tf)
     remain = str_len;
     cur_pos = str_uva;
 
-    while (remain) {
+    while (remain)
+    {
         if (remain < PAGESIZE - 1)
             nbytes = remain;
         else
             nbytes = PAGESIZE - 1;
 
-        if (pt_copyin(cur_pid, cur_pos, sys_buf[cur_pid], nbytes) != nbytes) {
+        if (pt_copyin(cur_pid, cur_pos, sys_buf[cur_pid], nbytes) != nbytes)
+        {
             syscall_set_errno(tf, E_MEM);
             return;
         }
@@ -58,6 +63,7 @@ extern uint8_t _binary___obj_user_pingpong_ping_start[];
 extern uint8_t _binary___obj_user_pingpong_pong_start[];
 extern uint8_t _binary___obj_user_pingpong_ding_start[];
 extern uint8_t _binary___obj_user_fstest_fstest_start[];
+extern uint8_t _binary___obj_user_shell_shell_start[];
 
 /**
  * Spawns a new child process.
@@ -87,23 +93,27 @@ void sys_spawn(tf_t *tf)
     elf_id = syscall_get_arg2(tf);
     quota = syscall_get_arg3(tf);
 
-    if (!container_can_consume(curid, quota)) {
+    if (!container_can_consume(curid, quota))
+    {
         syscall_set_errno(tf, E_EXCEEDS_QUOTA);
         syscall_set_retval1(tf, NUM_IDS);
         return;
     }
-    else if (NUM_IDS < curid * MAX_CHILDREN + 1 + MAX_CHILDREN) {
+    else if (NUM_IDS < curid * MAX_CHILDREN + 1 + MAX_CHILDREN)
+    {
         syscall_set_errno(tf, E_MAX_NUM_CHILDEN_REACHED);
         syscall_set_retval1(tf, NUM_IDS);
         return;
     }
-    else if (container_get_nchildren(curid) == MAX_CHILDREN) {
+    else if (container_get_nchildren(curid) == MAX_CHILDREN)
+    {
         syscall_set_errno(tf, E_INVAL_CHILD_ID);
         syscall_set_retval1(tf, NUM_IDS);
         return;
     }
 
-    switch (elf_id) {
+    switch (elf_id)
+    {
     case 1:
         elf_addr = _binary___obj_user_pingpong_ping_start;
         break;
@@ -116,6 +126,9 @@ void sys_spawn(tf_t *tf)
     case 4:
         elf_addr = _binary___obj_user_fstest_fstest_start;
         break;
+    case 5:
+        elf_addr = _binary___obj_user_shell_shell_start;
+        break;
     default:
         syscall_set_errno(tf, E_INVAL_PID);
         syscall_set_retval1(tf, NUM_IDS);
@@ -124,10 +137,13 @@ void sys_spawn(tf_t *tf)
 
     new_pid = proc_create(elf_addr, quota);
 
-    if (new_pid == NUM_IDS) {
+    if (new_pid == NUM_IDS)
+    {
         syscall_set_errno(tf, E_INVAL_PID);
         syscall_set_retval1(tf, NUM_IDS);
-    } else {
+    }
+    else
+    {
         syscall_set_errno(tf, E_SUCC);
         syscall_set_retval1(tf, new_pid);
     }
@@ -143,4 +159,44 @@ void sys_yield(tf_t *tf)
 {
     thread_yield();
     syscall_set_errno(tf, E_SUCC);
+}
+
+void sys_readline(tf_t *tf)
+{
+    char *user_buff = (char *)syscall_get_arg2(tf);
+
+    char *linebuf = readline(NULL);
+    if (linebuf == 0)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+        return;
+    }
+
+    int n = strnlen(linebuf, 1024) + 1;
+    if ((unsigned int)user_buff < VM_USERLO || (unsigned int)user_buff + n > VM_USERHI)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+
+    pt_copyout(linebuf, get_curid(), (unsigned int)user_buff, n);
+    syscall_set_retval1(tf, 0);
+    syscall_set_errno(tf, E_SUCC);
+}
+
+void sys_is_dir(tf_t *tf)
+{
+    struct file *fp;
+    int fd = syscall_get_arg2(tf);
+    fp = tcb_get_openfiles(get_curid())[fd];
+    if (fp == 0 || fp->ip == 0)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+        return;
+    }
+    syscall_set_errno(tf, E_SUCC);
+    syscall_set_retval1(tf, fp->ip->type == T_DIR);
 }
