@@ -130,18 +130,6 @@ int append_to_pwd(char *child_dir)
     return 0;
 }
 
-int is_dir(char *path)
-{
-    int fd, is_dir;
-    if (file_exist(path))
-    {
-        fd = open(path, O_RDONLY);
-    }
-    is_dir = sys_is_dir(fd);
-    close(fd);
-    return is_dir;
-}
-
 int file_exist(char *path)
 {
     int fd;
@@ -153,6 +141,18 @@ int file_exist(char *path)
     close(fd);
     return 1;
 }
+
+// int is_dir(char *path)
+// {
+//     int fd, is_dir;
+//     if (file_exist(path))
+//     {
+//         fd = open(path, O_RDONLY);
+//     }
+//     is_dir = sys_is_dir(fd);
+//     close(fd);
+//     return is_dir;
+// }
 
 int main(int argc, char *argv[])
 {
@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
 
         for (unsigned int command_idx = 0; command_idx < CMD_NUM_ARGS; command_idx++)
         {
-            printf("argument #%d length: %d: %s \n", command_idx, command_args[command_idx], strlen(command_args[command_idx]));
+            printf("argument #%d length: %d: %s \n", command_idx, strlen(command_args[command_idx]), command_args[command_idx]);
         }
 
         if (!strcmp(command_args[0], "touch"))
@@ -203,15 +203,16 @@ int main(int argc, char *argv[])
                 printf("wrong arguments for mkdir with %d argument\n", cmd_extract_status);
                 continue;
             }
+            printf("about to call mkdir with %s\n", command_args[1]);
             cmd_ret_val = mkdir(command_args[1]);
-            if (!cmd_ret_val)
+            if (cmd_ret_val < 0)
             {
                 printf("%s %s failed\n", command_args[0], command_args[1]);
             }
             continue;
         }
 
-        if (!strcmp(command_args[0], "chdir"))
+        if (!strcmp(command_args[0], "cd"))
         {
             if (cmd_extract_status != 2)
             {
@@ -219,7 +220,7 @@ int main(int argc, char *argv[])
                 continue;
             }
             cmd_ret_val = chdir(command_args[1]);
-            if (!cmd_ret_val)
+            if (cmd_ret_val < 0)
             {
                 printf("%s %s failed\n", command_args[0], command_args[1]);
             }

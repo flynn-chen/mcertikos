@@ -8,6 +8,7 @@
 #include <dev/console.h>
 #include <lib/string.h>
 #include <pcpu/PCPUIntro/export.h>
+#include <thread/PTCBIntro/export.h>
 
 #include "import.h"
 

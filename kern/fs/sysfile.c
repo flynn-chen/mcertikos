@@ -539,12 +539,12 @@ void sys_chdir(tf_t *tf)
  * Return Value: Upon successful completion, 0 shall be returned; otherwise, -1
  * shall be returned and errno E_BADF set to indicate the error.
  */
-char *ls_buff[10000];
+char ls_buff[10000];
 void sys_ls(tf_t *tf)
 {
     unsigned int uva = syscall_get_arg2(tf); //check user address doesn't falls in kernel mem
     size_t n = syscall_get_arg2(tf);
-    if (n < 0 || n > 10000)
+    if (n < 0 || n >= 10000)
     {
         syscall_set_retval1(tf, -1);
         syscall_set_errno(tf, E_INVAL_ADDR);
@@ -557,18 +557,19 @@ void sys_ls(tf_t *tf)
         return;
     }
 
-    struct inode *dp = (struct inode *)tcb_get_cwd(cur_pid);
+    struct inode *dp = (struct inode *)tcb_get_cwd(get_curid());
     if (isdirempty(dp)) //empty directory
     {
         syscall_set_retval1(tf, 0);
         syscall_set_errno(tf, E_SUCC);
-        return 0;
+        return;
     }
 
     struct dirent de;
+    unsigned int de_size = sizeof(de);
     int file_length;
     char *front = ls_buff; // char buffer to store file output i.e. "README.md file.py ..."
-    for (unsigned int off = 0; off < dp->size; off += sizeof(de))
+    for (unsigned int off = 0; off < dp->size; off += de_size)
     {
         if (inode_read(dp, (char *)&de, off, de_size) != de_size)
         {
@@ -580,9 +581,9 @@ void sys_ls(tf_t *tf)
         }
 
         file_length = front - ls_buff;
-        if (file_length >= DIRSIZE)
+        if (file_length >= DIRSIZ)
         {
-            file_length = DIRSIZE - 1;
+            file_length = DIRSIZ - 1;
         }
         strncpy(front, de.name, file_length);
         front += file_length;
@@ -592,7 +593,7 @@ void sys_ls(tf_t *tf)
     int buff_length = front - ls_buff;
     if (buff_length >= n)
     {
-        buff_length = n - 1
+        buff_length = n - 1;
     }
     pt_copyout(ls_buff, get_curid(), uva, n);
     syscall_set_retval1(tf, 0);
