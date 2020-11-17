@@ -7,6 +7,7 @@
 #include <gcc.h>
 #include <proc.h>
 #include <types.h>
+#include <stdio.h>
 #include <x86.h>
 #include <file.h>
 

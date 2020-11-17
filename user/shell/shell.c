@@ -7,16 +7,43 @@
 
 #define exit(...) return __VA_ARGS__
 #define CMD_NUM_ARGS 4
-#define CMD_BUFF_SIZE 10000
+#define CMD_BUFF_SIZE 1024
 #define DIRSIZ 14
 
 char buff[CMD_BUFF_SIZE];
 char command_args[CMD_NUM_ARGS][CMD_BUFF_SIZE];
 char return_buff[10000];
+char pwd_buff[1024];
 // 1 command: rm, ls etc.
 // 2 flags: -r
 // 3 target 1: filename, dirname
 // 4 target 2: filename, dirname
+
+int file_exist(char *path)
+{
+    int fd;
+    fd = open(path, O_RDONLY);
+    if (fd == -1)
+    {
+        return 0;
+    }
+    close(fd);
+    return 1;
+}
+
+int is_directory(char *path)
+{
+    int is_dir_status;
+    if (file_exist(path))
+    {
+        is_dir_status = is_dir(path);
+    }
+    else
+    {
+        return 0;
+    }
+    return is_dir_status;
+}
 
 int extract_cmd()
 {
@@ -133,31 +160,165 @@ int shell_copy(char *path1, char *path2)
     return 0;
 }
 
-int file_exist(char *path)
+int shell_recursive_rm(char *path)
 {
-    int fd;
-    fd = open(path, O_RDONLY);
-    if (fd == -1)
+    int return_val, i;
+    char subpath_buff[1024];
+    char *current_file;
+    int subpath_len;
+    if (!is_directory(path))
     {
-        return 0;
-    }
-    close(fd);
-    return 1;
-}
-
-int is_directory(char *path)
-{
-    int is_dir_status;
-    if (file_exist(path))
-    {
-        is_dir_status = is_dir(path);
+        printf("rming %s\n", path);
+        return_val = unlink(path);
+        return return_val;
     }
     else
     {
+        printf("cding %s\n", path);
+        if (chdir(path))
+        {
+            printf("rm: cd failed");
+        }
+
+        //get all files in current dir
+        return_buff[0] = '.';
+        return_buff[1] = '\0';
+        return_val = ls(return_buff); //gotta use heap return buff cuz user stack reaches VM_USR_HI
+        strncpy(subpath_buff, return_buff, 1024);
+        subpath_len = strlen(subpath_buff);
+        for (i = 0; i < subpath_len; i++)
+        {
+            if (subpath_buff[i] == ' ')
+            {
+                subpath_buff[i] = '\0';
+            }
+        }
+
+        //for every file in current dir
+        for (i = 0; i < subpath_len; i += (strlen(current_file) + 1))
+        {
+            current_file = &subpath_buff[i];
+            if (strcmp(current_file, ".") && strcmp(current_file, ".."))
+            {
+                printf("current file: %s\n", current_file);
+                return_val = shell_recursive_rm(current_file);
+                if (return_val)
+                {
+                    printf("rm: failed to remove %s\n", current_file);
+                    return -1;
+                }
+            }
+        }
+
+        if (chdir(".."))
+        {
+            printf("rm: cd .. failed");
+        }
+
+        if (unlink(path))
+        {
+            printf("rm: unlink failed for %s\n", path);
+            return -1;
+        }
         return 0;
     }
-    return is_dir_status;
 }
+
+// path = a/b/c
+int shell_rm(char *path)
+{
+    int path_len = strlen(path);
+    char *target = path;
+
+    for (int i = path_len - 1; i >= 0; i--)
+    {
+        if (i == path_len - 1 && path[i] == '/')
+        {
+            continue;
+        }
+        else if (path[i] == '/')
+        {
+            target = &path[i + 1];
+            break;
+        }
+        else if (i == 0)
+        {
+            target = path;
+            break;
+        }
+    }
+
+    pwd(pwd_buff);
+    chdir(path);
+    chdir("..");
+    shell_recursive_rm(target);
+    chdir(pwd_buff);
+    return 0;
+}
+
+// int shell_recursive_cp(char *dest, char *src)
+// {
+//     int return_val, i;
+//     char subpath_buff[1024];
+//     char *current_file;
+//     int subpath_len;
+//     if (!file_exist(src))
+//     {
+//         printf("cp: %s does not exist\n", src);
+//         return 0;
+//     }
+//     else
+//     {
+//         printf("cding %s\n", path);
+//         if (chdir(path))
+//         {
+//             printf("rm: cd failed");
+//         }
+
+//         //get all files in current dir
+//         subpath_buff[0] = '.';
+//         subpath_buff[1] = '\0';
+//         printf("lsing: %s\n", subpath_buff);
+//         ls(subpath_buff);
+//         printf("lsed: %s\n", subpath_buff);
+//         subpath_len = strlen(subpath_buff);
+//         for (i = 0; i < subpath_len; i++)
+//         {
+//             if (subpath_buff[i] == ' ')
+//             {
+//                 subpath_buff[i] = '\0';
+//             }
+//         }
+
+//         //for every file in current dir
+//         for (i = 0; i < subpath_len; i += (strlen(current_file) + 1))
+//         {
+//             current_file = &subpath_buff[i];
+//             printf("current file: %s\n", current_file);
+//             if (!strcmp(&current_file[i], ".") && !strcmp(&current_file[i], ".."))
+//             {
+//                 return_val = shell_recursive_rm(&current_file[i]);
+//                 if (return_val)
+//                 {
+//                     printf("rm: failed to remove %s\n", current_file[i]);
+//                     return -1;
+//                 }
+//             }
+//         }
+
+//         if (chdir(".."))
+//         {
+//             printf("rm: cd .. failed");
+//         }
+
+//         if (unlink(path))
+//         {
+//             printf("rm: unlink failed for %s\n", path);
+//             return -1;
+//         }
+//         return 0;
+//     }
+// }
 
 int main(int argc, char *argv[])
 {
@@ -350,6 +511,11 @@ int main(int argc, char *argv[])
             {
                 unlink(command_args[1]);
             }
+        }
+
+        if (!strcmp(command_args[0], "rm") && !strcmp(command_args[1], "-r") && cmd_extract_status == 3)
+        {
+            shell_rm(command_args[2]);
         }
     }
     return 0;

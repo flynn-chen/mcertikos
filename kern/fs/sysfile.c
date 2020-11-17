@@ -559,7 +559,7 @@ void sys_ls(tf_t *tf)
     ls_buff[path_length] = '\0';
 
     // find the inode corresponding to given path
-    struct inode *dp = (struct inode *) namei(ls_buff);
+    struct inode *dp = (struct inode *)namei(ls_buff);
 
     // zero out the ls_buff
     memset(ls_buff, 0, LS_BUFF_SIZE);
@@ -614,25 +614,26 @@ void sys_is_dir(tf_t *tf)
     pt_copyin(get_curid(), syscall_get_arg2(tf), is_dir_buff, path_length);
     is_dir_buff[path_length] = '\0';
 
-    struct inode *dp = (struct inode *) namei(is_dir_buff);
+    struct inode *dp = (struct inode *)namei(is_dir_buff);
 
-    if(dp == 0) {
+    if (dp == 0)
+    {
         syscall_set_errno(tf, E_BADF);
         syscall_set_retval1(tf, -1);
     }
     syscall_set_errno(tf, E_SUCC);
 
-    if(dp->type == T_DIR)
+    if (dp->type == T_DIR)
     {
         syscall_set_retval1(tf, 1);
         return;
     }
-    else if(dp->type == T_FILE)
+    else if (dp->type == T_FILE)
     {
         syscall_set_retval1(tf, 0);
         return;
     }
-    else if(dp->type == T_DEV)
+    else if (dp->type == T_DEV)
     {
         syscall_set_retval1(tf, 0);
         return;
@@ -650,10 +651,11 @@ void reverse_append(char *dst, char *src, int len)
 {
     int dst_i, src_i;
     // search for next empty character in the destination
-    for(dst_i = 0; dst[dst_i] != '\0'; dst_i++) 
+    for (dst_i = 0; dst[dst_i] != '\0'; dst_i++)
         ;
     // copy in reverse
-    for(src_i = len - 1; src_i >= 0; src_i--, dst_i++){
+    for (src_i = len - 1; src_i >= 0; src_i--, dst_i++)
+    {
         dst[dst_i] = src[src_i];
     }
     dst[dst_i++] = '/';
@@ -663,14 +665,14 @@ void reverse_string(char *string)
     int length = strnlen(string, 10000);
     char reverse[length + 1];
     int i;
-    for(i = 0; i < length; i++)
+    for (i = 0; i < length; i++)
     {
         reverse[i] = string[length - i - 1];
     }
     reverse[length] = '\0';
 
-    for(i = 0; i < length; i++)
-    {   
+    for (i = 0; i < length; i++)
+    {
         string[i] = reverse[i];
     }
 }
@@ -687,7 +689,7 @@ void sys_pwd(tf_t *tf)
         syscall_set_errno(tf, E_INVAL_ADDR);
         return;
     }
-    
+
     //   /root/sub1/sub2
     // pwd = sub2
     // curr = sub2
@@ -696,12 +698,13 @@ void sys_pwd(tf_t *tf)
     // temp name = ""
     // final = "2bus/1bus/toor/
     // final = "/root/sub1/sub2"
-    
-    struct inode *current_inode = (struct inode*) tcb_get_cwd(get_curid());
+
+    struct inode *current_inode = (struct inode *)tcb_get_cwd(get_curid());
     struct inode *original_inode = current_inode;
     struct inode *parent_inode = namei("..");
 
-    if(current_inode->inum == parent_inode->inum){
+    if (current_inode->inum == parent_inode->inum)
+    {
         final_name[0] = '/';
         final_name[1] = '\0';
         pt_copyout(final_name, get_curid(), uva, name_buff_size);
@@ -714,14 +717,18 @@ void sys_pwd(tf_t *tf)
     struct dirent de;
     unsigned int de_size = sizeof(de);
     unsigned int off;
-    
-    while(parent_inode->inum != current_inode->inum) {
-        for (off = 0; off < parent_inode->size; off += de_size) {
-            if (inode_read(parent_inode, (char *)&de, off, sizeof(de)) != sizeof(de)) {
+
+    while (parent_inode->inum != current_inode->inum)
+    {
+        for (off = 0; off < parent_inode->size; off += de_size)
+        {
+            if (inode_read(parent_inode, (char *)&de, off, sizeof(de)) != sizeof(de))
+            {
                 KERN_PANIC("can't read enough bytes in sys_pwd");
             }
-            
-            if (de.inum == current_inode->inum) {
+
+            if (de.inum == current_inode->inum)
+            {
                 reverse_append(final_name, de.name, strnlen(de.name, DIRSIZ));
                 break;
             }
@@ -738,4 +745,3 @@ void sys_pwd(tf_t *tf)
     tcb_set_cwd(get_curid(), original_inode);
     return;
 }
-
