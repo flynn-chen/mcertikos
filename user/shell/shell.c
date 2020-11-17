@@ -7,11 +7,12 @@
 
 #define exit(...) return __VA_ARGS__
 #define CMD_NUM_ARGS 4
-#define CMD_BUFF_SIZE 1024
+#define CMD_BUFF_SIZE 10000
 #define DIRSIZ 14
 
 char buff[CMD_BUFF_SIZE];
 char command_args[CMD_NUM_ARGS][CMD_BUFF_SIZE];
+char return_buff[10000];
 // 1 command: rm, ls etc.
 // 2 flags: -r
 // 3 target 1: filename, dirname
@@ -44,6 +45,7 @@ int extract_cmd()
         {
             return -1;
         }
+
         memmove(command_args[command_idx], front, len);
         command_args[command_idx][len] = '\0';
     }
@@ -53,12 +55,15 @@ int extract_cmd()
         if (*end != ' ')
             return -2;
     }
+    for (command_idx = 0; command_idx < CMD_NUM_ARGS && command_args[command_idx][0] != '\0'; command_idx++)
+        ;
     return command_idx;
 }
 
 void zero_cmd_buff()
 {
     memzero(buff, CMD_BUFF_SIZE);
+    memzero(return_buff, 10000);
     for (unsigned int command_idx = 0; command_idx < CMD_NUM_ARGS; command_idx++)
     {
         memzero(command_args[command_idx], CMD_BUFF_SIZE);
@@ -87,7 +92,8 @@ int change_to_parent_dir(void)
 }
 
 // pwd = /a/b
-// child_dir = d/c////e
+// child_dir = d/c//.././e
+// return = /a/b/d/c/e
 int append_to_pwd(char *child_dir)
 {
     memmove(temp_pwd, pwd, strlen(pwd));
@@ -142,17 +148,19 @@ int file_exist(char *path)
     return 1;
 }
 
-// int is_dir(char *path)
-// {
-//     int fd, is_dir;
-//     if (file_exist(path))
-//     {
-//         fd = open(path, O_RDONLY);
-//     }
-//     is_dir = sys_is_dir(fd);
-//     close(fd);
-//     return is_dir;
-// }
+int is_directory(char *path)
+{
+    int is_dir_status;
+    if (file_exist(path))
+    {
+        is_dir_status = is_dir(path);
+        printf("got return value for is_dir %d\n", is_dir_status);
+    }
+    else{
+        return 0;
+    }
+    return is_dir_status;
+}
 
 int main(int argc, char *argv[])
 {
@@ -226,6 +234,50 @@ int main(int argc, char *argv[])
             }
             continue;
         }
+ 
+        if(!strcmp(command_args[0], "ls"))
+        { 
+            if(cmd_extract_status == 1)
+            {
+                // move pwd into some buffer
+                command_args[1][0] = '.';
+                command_args[1][1] = '\0';
+                cmd_ret_val = ls(command_args[1]);
+                printf("%s\n", command_args[1]);
+            }
+            
+            if (cmd_extract_status == 2)
+            {
+              if (is_directory(command_args[1]) == 1) { // if it is a directory
+                printf("%s is a directory\n", command_args[1]);
+                cmd_ret_val = ls(command_args[1]);
+                printf("%s\n", command_args[1]);
+              } else { // if it is a file
+                printf("%s is a file\n", command_args[1]);
+                if (file_exist(command_args[1])) {
+                  printf("%s\n", command_args[1]);
+                }
+              }
+            }
+        }
+
+        if(!strcmp(command_args[0], "pwd") && cmd_extract_status == 1)
+        { 
+            pwd(return_buff);
+            printf("%s\n", return_buff);
+        }
     }
     return 0;
 }
+
+/*
+    How to wire up new system calls:
+
+        0. Define a macro somewhere to route "name" to "sys_name" (ex: define it in /user/include/file.h)
+        1. Write new inline assembly in /user/include/syscall.h
+        2. Add new SYS_name enum to /kern/lib/syscall.h
+        3. Add new switch case for SYS_name in /kern/trap/TDispatch/TDispatch.c
+        4. Write new sys_name function (ex: write it in /kern/trap/TSyscall/TSyscall.c or /kern/fs/sysfile.c)
+            Make sure to add it to the header file!!
+
+*/

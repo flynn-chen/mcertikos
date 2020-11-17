@@ -240,4 +240,57 @@ static gcc_inline int sys_readline(char *buff)
   return errno ? -1 : 0;
 }
 
+static gcc_inline int sys_ls(char *buff)
+{
+  int errno, ret;
+  int length = strlen(buff);
+  if (length > 10000)
+  {
+    return -1;
+  }
+
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(ret)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_ls),
+                 "b"(buff),
+                 "c"(length)
+               : "cc", "memory");
+
+  return errno ? -1 : 0;
+}
+
+static gcc_inline int sys_is_dir(char *path)
+{
+  int errno, ret;
+  int length = strlen(path);
+  if (length > 10000)
+  {
+    return -1;
+  }
+
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(ret)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_is_dir),
+                 "b"(path),
+                 "c"(length)
+               : "cc", "memory");
+
+  return errno ? -1 : ret;
+}
+
+static gcc_inline int sys_pwd(char *buff)
+{
+  int errno, ret;
+
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(ret)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_pwd),
+                 "b"(buff)
+               : "cc", "memory");
+  return errno ? -1 : 0;
+}
+
 #endif /* !_USER_SYSCALL_H_ */

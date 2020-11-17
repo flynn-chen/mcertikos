@@ -187,17 +187,4 @@ void sys_readline(tf_t *tf)
     syscall_set_errno(tf, E_SUCC);
 }
 
-void sys_is_dir(tf_t *tf)
-{
-    struct file *fp;
-    int fd = syscall_get_arg2(tf);
-    fp = tcb_get_openfiles(get_curid())[fd];
-    if (fp == 0 || fp->ip == 0)
-    {
-        syscall_set_retval1(tf, -1);
-        syscall_set_errno(tf, E_BADF);
-        return;
-    }
-    syscall_set_errno(tf, E_SUCC);
-    syscall_set_retval1(tf, fp->ip->type == T_DIR);
-}
+

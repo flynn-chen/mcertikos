@@ -95,6 +95,15 @@ void syscall_dispatch(tf_t *tf)
     case SYS_readline:
         sys_readline(tf);
         break;
+    case SYS_ls:
+        sys_ls(tf);
+        break;
+    case SYS_is_dir:
+        sys_is_dir(tf);
+        break;
+    case SYS_pwd:
+        sys_pwd(tf);
+        break;
     default:
         syscall_set_errno(tf, E_INVAL_CALLNR);
     }

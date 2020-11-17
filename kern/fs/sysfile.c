@@ -539,31 +539,32 @@ void sys_chdir(tf_t *tf)
  * Return Value: Upon successful completion, 0 shall be returned; otherwise, -1
  * shall be returned and errno E_BADF set to indicate the error.
  */
-char ls_buff[10000];
+
+#define LS_BUFF_SIZE 10000
+char ls_buff[LS_BUFF_SIZE];
 void sys_ls(tf_t *tf)
 {
+    // zero out the ls buffer
+    memset(ls_buff, 0, LS_BUFF_SIZE);
     unsigned int uva = syscall_get_arg2(tf); //check user address doesn't falls in kernel mem
-    size_t n = syscall_get_arg2(tf);
-    if (n < 0 || n >= 10000)
+    int path_length = syscall_get_arg3(tf);
+    if (uva < VM_USERLO || uva + LS_BUFF_SIZE > VM_USERHI)
     {
         syscall_set_retval1(tf, -1);
         syscall_set_errno(tf, E_INVAL_ADDR);
         return;
     }
-    if (uva < VM_USERLO || uva + n > VM_USERHI)
-    {
-        syscall_set_retval1(tf, -1);
-        syscall_set_errno(tf, E_INVAL_ADDR);
-        return;
-    }
+    // copy user buffer into ls buffer
+    pt_copyin(get_curid(), syscall_get_arg2(tf), ls_buff, path_length);
+    ls_buff[path_length] = '\0';
 
-    struct inode *dp = (struct inode *)tcb_get_cwd(get_curid());
-    if (isdirempty(dp)) //empty directory
-    {
-        syscall_set_retval1(tf, 0);
-        syscall_set_errno(tf, E_SUCC);
-        return;
-    }
+    // find the inode corresponding to given path
+    struct inode *dp = (struct inode *) namei(ls_buff);
+
+    // zero out the ls_buff
+    memset(ls_buff, 0, LS_BUFF_SIZE);
+    // overwrite user buffer with 0
+    pt_copyout(ls_buff, get_curid(), uva, path_length + 1);
 
     struct dirent de;
     unsigned int de_size = sizeof(de);
@@ -580,22 +581,161 @@ void sys_ls(tf_t *tf)
             continue;
         }
 
-        file_length = front - ls_buff;
-        if (file_length >= DIRSIZ)
-        {
-            file_length = DIRSIZ - 1;
-        }
+        file_length = strnlen(de.name, DIRSIZ);
         strncpy(front, de.name, file_length);
         front += file_length;
         *(front++) = ' ';
     }
 
     int buff_length = front - ls_buff;
-    if (buff_length >= n)
+    if (buff_length >= LS_BUFF_SIZE)
     {
-        buff_length = n - 1;
+        buff_length = LS_BUFF_SIZE - 1;
     }
-    pt_copyout(ls_buff, get_curid(), uva, n);
+    ls_buff[buff_length] = '\0';
+    pt_copyout(ls_buff, get_curid(), uva, LS_BUFF_SIZE);
     syscall_set_retval1(tf, 0);
     syscall_set_errno(tf, E_SUCC);
 }
+
+#define IS_DIR_BUFF_SIZE 10000
+char is_dir_buff[IS_DIR_BUFF_SIZE];
+void sys_is_dir(tf_t *tf)
+{
+    unsigned int uva = syscall_get_arg2(tf); //check user address doesn't falls in kernel mem
+    int path_length = syscall_get_arg3(tf);
+    if (uva < VM_USERLO || uva + LS_BUFF_SIZE > VM_USERHI)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+
+    pt_copyin(get_curid(), syscall_get_arg2(tf), is_dir_buff, path_length);
+    is_dir_buff[path_length] = '\0';
+
+    struct inode *dp = (struct inode *) namei(is_dir_buff);
+
+    if(dp == 0) {
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+    }
+    syscall_set_errno(tf, E_SUCC);
+
+    if(dp->type == T_DIR)
+    {
+        syscall_set_retval1(tf, 1);
+        return;
+    }
+    else if(dp->type == T_FILE)
+    {
+        syscall_set_retval1(tf, 0);
+        return;
+    }
+    else if(dp->type == T_DEV)
+    {
+        syscall_set_retval1(tf, 0);
+        return;
+    }
+    else
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+        return;
+    }
+    return;
+}
+
+void reverse_append(char *dst, char *src, int len)
+{
+    int dst_i, src_i;
+    // search for next empty character in the destination
+    for(dst_i = 0; dst[dst_i] != '\0'; dst_i++) 
+        ;
+    // copy in reverse
+    for(src_i = len - 1; src_i >= 0; src_i--, dst_i++){
+        dst[dst_i] = src[src_i];
+    }
+    dst[dst_i++] = '/';
+}
+void reverse_string(char *string)
+{
+    int length = strnlen(string, 10000);
+    char reverse[length + 1];
+    int i;
+    for(i = 0; i < length; i++)
+    {
+        reverse[i] = string[length - i - 1];
+    }
+    reverse[length] = '\0';
+
+    for(i = 0; i < length; i++)
+    {   
+        string[i] = reverse[i];
+    }
+}
+
+#define name_buff_size 10000
+char final_name[name_buff_size];
+void sys_pwd(tf_t *tf)
+{
+    unsigned int uva = syscall_get_arg2(tf); //check user address doesn't falls in kernel mem
+    // int path_length = syscall_get_arg3(tf);
+    if (uva < VM_USERLO || uva + LS_BUFF_SIZE > VM_USERHI)
+    {
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+    
+    //   /root/sub1/sub2
+    // pwd = sub2
+    // curr = sub2
+    // parent = sub1
+    // final name = ""
+    // temp name = ""
+    // final = "2bus/1bus/toor/
+    // final = "/root/sub1/sub2"
+    
+    struct inode *current_inode = (struct inode*) tcb_get_cwd(get_curid());
+    struct inode *original_inode = current_inode;
+    struct inode *parent_inode = namei("..");
+
+    if(current_inode->inum == parent_inode->inum){
+        final_name[0] = '/';
+        final_name[1] = '\0';
+        pt_copyout(final_name, get_curid(), uva, name_buff_size);
+        syscall_set_errno(tf, E_SUCC);
+        syscall_set_retval1(tf, 0);
+        return;
+    }
+
+    memset(final_name, 0, name_buff_size);
+    struct dirent de;
+    unsigned int de_size = sizeof(de);
+    unsigned int off;
+    
+    while(parent_inode->inum != current_inode->inum) {
+        for (off = 0; off < parent_inode->size; off += de_size) {
+            if (inode_read(parent_inode, (char *)&de, off, sizeof(de)) != sizeof(de)) {
+                KERN_PANIC("can't read enough bytes in sys_pwd");
+            }
+            
+            if (de.inum == current_inode->inum) {
+                reverse_append(final_name, de.name, strnlen(de.name, DIRSIZ));
+                break;
+            }
+        }
+        current_inode = parent_inode;
+        tcb_set_cwd(get_curid(), current_inode);
+        parent_inode = namei("..");
+    }
+
+    reverse_string(final_name);
+    pt_copyout(final_name, get_curid(), uva, name_buff_size);
+    syscall_set_errno(tf, E_SUCC);
+    syscall_set_retval1(tf, 0);
+    tcb_set_cwd(get_curid(), original_inode);
+    return;
+}
+
