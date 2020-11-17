@@ -168,13 +168,13 @@ int shell_recursive_rm(char *path)
     int subpath_len;
     if (!is_directory(path))
     {
-        printf("rming %s\n", path);
+        //printf("rming %s\n", path);
         return_val = unlink(path);
         return return_val;
     }
     else
     {
-        printf("cding %s\n", path);
+        //printf("cding %s\n", path);
         if (chdir(path))
         {
             printf("rm: cd failed");
@@ -256,69 +256,69 @@ int shell_rm(char *path)
     return 0;
 }
 
-// int shell_recursive_cp(char *dest, char *src)
-// {
-//     int return_val, i;
-//     char subpath_buff[1024];
-//     char *current_file;
-//     int subpath_len;
-//     if (!file_exist(src))
-//     {
-//         printf("cp: %s does not exist\n", src);
-//         return 0;
-//     }
-//     else
-//     {
-//         printf("cding %s\n", path);
-//         if (chdir(path))
-//         {
-//             printf("rm: cd failed");
-//         }
+int shell_recursive_cp(char *dest, char *src)
+{
+    int return_val, i;
+    char subpath_buff[1024];
+    char *current_file;
+    int subpath_len;
+    if (!file_exist(src))
+    {
+        printf("cp: %s does not exist\n", src);
+        return 0;
+    }
+    else
+    {
+        printf("cding %s\n", path);
+        if (chdir(path))
+        {
+            printf("rm: cd failed");
+        }
 
-//         //get all files in current dir
-//         subpath_buff[0] = '.';
-//         subpath_buff[1] = '\0';
-//         printf("lsing: %s\n", subpath_buff);
-//         ls(subpath_buff);
-//         printf("lsed: %s\n", subpath_buff);
-//         subpath_len = strlen(subpath_buff);
-//         for (i = 0; i < subpath_len; i++)
-//         {
-//             if (subpath_buff[i] == ' ')
-//             {
-//                 subpath_buff[i] = '\0';
-//             }
-//         }
+        //get all files in current dir
+        subpath_buff[0] = '.';
+        subpath_buff[1] = '\0';
+        printf("lsing: %s\n", subpath_buff);
+        ls(subpath_buff);
+        printf("lsed: %s\n", subpath_buff);
+        subpath_len = strlen(subpath_buff);
+        for (i = 0; i < subpath_len; i++)
+        {
+            if (subpath_buff[i] == ' ')
+            {
+                subpath_buff[i] = '\0';
+            }
+        }
 
-//         //for every file in current dir
-//         for (i = 0; i < subpath_len; i += (strlen(current_file) + 1))
-//         {
-//             current_file = &subpath_buff[i];
-//             printf("current file: %s\n", current_file);
-//             if (!strcmp(&current_file[i], ".") && !strcmp(&current_file[i], ".."))
-//             {
-//                 return_val = shell_recursive_rm(&current_file[i]);
-//                 if (return_val)
-//                 {
-//                     printf("rm: failed to remove %s\n", current_file[i]);
-//                     return -1;
-//                 }
-//             }
-//         }
+        //for every file in current dir
+        for (i = 0; i < subpath_len; i += (strlen(current_file) + 1))
+        {
+            current_file = &subpath_buff[i];
+            printf("current file: %s\n", current_file);
+            if (!strcmp(&current_file[i], ".") && !strcmp(&current_file[i], ".."))
+            {
+                return_val = shell_recursive_rm(&current_file[i]);
+                if (return_val)
+                {
+                    printf("rm: failed to remove %s\n", current_file[i]);
+                    return -1;
+                }
+            }
+        }
 
-//         if (chdir(".."))
-//         {
-//             printf("rm: cd .. failed");
-//         }
+        if (chdir(".."))
+        {
+            printf("rm: cd .. failed");
+        }
 
-//         if (unlink(path))
-//         {
-//             printf("rm: unlink failed for %s\n", path);
-//             return -1;
-//         }
-//         return 0;
-//     }
-// }
+        if (unlink(path))
+        {
+            printf("rm: unlink failed for %s\n", path);
+            return -1;
+        }
+        return 0;
+    }
+}
 
 int main(int argc, char *argv[])
 {
