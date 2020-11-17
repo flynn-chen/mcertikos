@@ -70,69 +70,66 @@ void zero_cmd_buff()
     }
 }
 
-char pwd[CMD_BUFF_SIZE] = "/";
-char temp_pwd[CMD_BUFF_SIZE] = "/";
-// in the format of /a/c/ always followed by trailing /
-
-int change_to_parent_dir(void)
+int shell_cat(char *path)
 {
-    int current_pwd_len = strlen(pwd);
-    if (current_pwd_len == 1)
+    int fd;
+    fd = open(path, O_RDONLY);
+    if (fd == -1)
     {
-        return 0;
+        return -1;
     }
-
-    for (current_pwd_len = current_pwd_len - 2; current_pwd_len >= 0; current_pwd_len--)
-    {
-        if (pwd[current_pwd_len] == '/')
-            break;
-    }
-    pwd[current_pwd_len] = '\0';
+    read(fd, return_buff, CMD_BUFF_SIZE - 1);
+    return_buff[CMD_BUFF_SIZE - 1] = '\0';
+    close(fd);
     return 0;
 }
 
-// pwd = /a/b
-// child_dir = d/c//.././e
-// return = /a/b/d/c/e
-int append_to_pwd(char *child_dir)
+int shell_write(char *string, char *path)
 {
-    memmove(temp_pwd, pwd, strlen(pwd));
-    unsigned int current_pwd_len = strlen(temp_pwd);
-    char *front, *end;
-    int len;
-
-    end = child_dir;
-    while (end != 0 && *end != '\0')
+    int fd, write_size;
+    fd = open(path, O_CREATE | O_RDWR);
+    if (fd < 0)
     {
-        front = end;
-        while (*end != '/' && *end != '\0') //find the next slash or hit the end
-        {
-            end++;
-        }
-        len = end - front; //calculate length of path element
-        if (len <= 0)      // if there is not path element
-        {
-            break;
-        }
-        if (len > DIRSIZ) //if path element exceeds size
-        {
-            len = DIRSIZ - 1;
-        }
-        if (current_pwd_len + len + 1 > CMD_BUFF_SIZE)
-        {
-            printf("child path does not fit in pwd buffer\n");
-            return -1;
-        }
-        memmove(&temp_pwd[current_pwd_len], front, len); //move from path to name
-        temp_pwd[current_pwd_len + len] = '\0';          //add string terminator
-        current_pwd_len += len;
-        while (*end == '/') //ignore trailing slashes
-        {
-            end++;
-        }
+        return -1;
     }
+    write_size = write(fd, string, strlen(string));
+    if (write_size != strlen(string))
+    {
+        return -2;
+    }
+    close(fd);
+    return 0;
+}
 
-    memmove(pwd, temp_pwd, strlen(temp_pwd));
+int shell_append(char *string, char *path)
+{
+    if (shell_cat(path) != 0)
+    {
+        return -1;
+    }
+    unsigned int length = strlen(string);
+    if (length > CMD_BUFF_SIZE - strlen(return_buff))
+    {
+        length = CMD_BUFF_SIZE - strlen(return_buff) - 1;
+    }
+    strncpy(&return_buff[strlen(return_buff)], string, length);
+    if (shell_write(return_buff, path) != 0)
+    {
+        return -2;
+    }
+    return 0;
+}
+
+int shell_copy(char *path1, char *path2)
+{
+    if (shell_cat(path1) != 0)
+    {
+        return -1;
+    }
+    if (shell_write(return_buff, path2) != 0)
+    {
+        return -2;
+    }
     return 0;
 }
 
@@ -154,9 +151,9 @@ int is_directory(char *path)
     if (file_exist(path))
     {
         is_dir_status = is_dir(path);
-        printf("got return value for is_dir %d\n", is_dir_status);
     }
-    else{
+    else
+    {
         return 0;
     }
     return is_dir_status;
@@ -183,10 +180,10 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        for (unsigned int command_idx = 0; command_idx < CMD_NUM_ARGS; command_idx++)
-        {
-            printf("argument #%d length: %d: %s \n", command_idx, strlen(command_args[command_idx]), command_args[command_idx]);
-        }
+        // for (unsigned int command_idx = 0; command_idx < CMD_NUM_ARGS; command_idx++)
+        // {
+        //     printf("argument #%d length: %d: %s \n", command_idx, strlen(command_args[command_idx]), command_args[command_idx]);
+        // }
 
         if (!strcmp(command_args[0], "touch"))
         {
@@ -224,20 +221,20 @@ int main(int argc, char *argv[])
         {
             if (cmd_extract_status != 2)
             {
-                printf("wrong arguments for chdir\n");
+                printf("cd: wrong arguments\n");
                 continue;
             }
             cmd_ret_val = chdir(command_args[1]);
             if (cmd_ret_val < 0)
             {
-                printf("%s %s failed\n", command_args[0], command_args[1]);
+                printf("cd: cd %s failed\n", command_args[1]);
             }
             continue;
         }
- 
-        if(!strcmp(command_args[0], "ls"))
-        { 
-            if(cmd_extract_status == 1)
+
+        if (!strcmp(command_args[0], "ls"))
+        {
+            if (cmd_extract_status == 1)
             {
                 // move pwd into some buffer
                 command_args[1][0] = '.';
@@ -245,26 +242,114 @@ int main(int argc, char *argv[])
                 cmd_ret_val = ls(command_args[1]);
                 printf("%s\n", command_args[1]);
             }
-            
+
             if (cmd_extract_status == 2)
             {
-              if (is_directory(command_args[1]) == 1) { // if it is a directory
-                printf("%s is a directory\n", command_args[1]);
-                cmd_ret_val = ls(command_args[1]);
-                printf("%s\n", command_args[1]);
-              } else { // if it is a file
-                printf("%s is a file\n", command_args[1]);
-                if (file_exist(command_args[1])) {
-                  printf("%s\n", command_args[1]);
+                if (is_directory(command_args[1]) == 1)
+                { // if it is a directory
+                    // printf("%s is a directory\n", command_args[1]);
+                    cmd_ret_val = ls(command_args[1]);
+                    printf("%s\n", command_args[1]);
                 }
-              }
+                else
+                { // if it is a file
+                    // printf("%s is a file\n", command_args[1]);
+                    if (file_exist(command_args[1]))
+                    {
+                        printf("%s\n", command_args[1]);
+                    }
+                }
             }
         }
 
-        if(!strcmp(command_args[0], "pwd") && cmd_extract_status == 1)
-        { 
+        if (!strcmp(command_args[0], "pwd"))
+        {
+            if (cmd_extract_status != 1)
+            {
+                printf("pwd: wrong number of arguments");
+            }
             pwd(return_buff);
             printf("%s\n", return_buff);
+        }
+
+        if (!strcmp(command_args[0], "cat"))
+        {
+            if (cmd_extract_status != 2)
+            {
+                printf("cat: wrong number of arguments");
+            }
+            cmd_ret_val = shell_cat(command_args[1]);
+            if (cmd_ret_val != 0)
+            {
+                printf("cat: cannot open file %s\n", command_args[1]);
+            }
+            else
+            {
+                printf("%s\n", return_buff);
+            }
+        }
+
+        if (!strcmp(command_args[0], "write") && cmd_extract_status == 3)
+        {
+            if (cmd_extract_status != 3)
+            {
+                printf("write: wrong number of arguments");
+            }
+            cmd_ret_val = shell_write(command_args[1], command_args[2]);
+            if (cmd_ret_val == -1)
+            {
+                printf("write: cannot open file %s\n", command_args[2]);
+            }
+            if (cmd_ret_val == -2)
+            {
+                printf("write: did not write enough bytes to %s\n", command_args[2]);
+            }
+        }
+
+        if (!strcmp(command_args[0], "append") && cmd_extract_status == 3)
+        {
+            if (cmd_extract_status != 3)
+            {
+                printf("append: wrong number of arguments");
+            }
+            cmd_ret_val = shell_append(command_args[1], command_args[2]);
+            if (cmd_ret_val == -1)
+            {
+                printf("append: failed to read from %s\n", command_args[2]);
+            }
+            if (cmd_ret_val == -2)
+            {
+                printf("append: failed to write to %s\n", command_args[2]);
+            }
+        }
+
+        if (!strcmp(command_args[0], "cp") && cmd_extract_status == 3)
+        {
+            if (cmd_extract_status != 3)
+            {
+                printf("cp: wrong number of arguments");
+            }
+            cmd_ret_val = shell_copy(command_args[1], command_args[2]);
+            if (cmd_ret_val == -1)
+            {
+                printf("cp: failed to read from %s\n", command_args[2]);
+            }
+            if (cmd_ret_val == -2)
+            {
+                printf("cp: failed to write to %s\n", command_args[2]);
+            }
+        }
+
+        if (!strcmp(command_args[0], "rm") && cmd_extract_status == 2)
+        {
+            if (is_directory(command_args[1]) == 1)
+            { // if it is a directory
+                printf("rm: %s is a directory\n", command_args[1]);
+            }
+            else
+            {
+                unlink(command_args[1]);
+            }
         }
     }
     return 0;
