@@ -11,8 +11,10 @@
 #define DIRSIZ 14
 #define PATH_SIZE 256
 
-char buff[CMD_BUFF_SIZE];
-char command_args[CMD_NUM_ARGS][CMD_BUFF_SIZE];
+char buff[PATH_SIZE];
+char dest_buff[PATH_SIZE];
+char src_buff[PATH_SIZE];
+char command_args[CMD_NUM_ARGS][PATH_SIZE];
 char return_buff[10000];
 char pwd_buff[PATH_SIZE];
 char abs_dst[PATH_SIZE];
@@ -113,13 +115,13 @@ int extract_cmd()
 
 void zero_cmd_buff()
 {
-    memzero(buff, CMD_BUFF_SIZE);
+    memzero(buff, PATH_SIZE);
     memzero(return_buff, 10000);
     memzero(pwd_buff, PATH_SIZE);
     memzero(abs_dst, PATH_SIZE);
     for (unsigned int command_idx = 0; command_idx < CMD_NUM_ARGS; command_idx++)
     {
-        memzero(command_args[command_idx], CMD_BUFF_SIZE);
+        memzero(command_args[command_idx], PATH_SIZE);
     }
 }
 
@@ -343,7 +345,7 @@ int shell_rm(char *path)
 */
 int shell_recursive_cp(char *dest, char *src)
 {
-    printf("calling shell_recursive_cp with %d and %d\n", dest, src);
+    // printf("calling shell_recursive_cp with %d and %d\n", dest, src);
     char subpath_buff[PATH_SIZE];
     int orig_dest_len = strlen(dest);
     int orig_src_len = strlen(src);
@@ -357,7 +359,8 @@ int shell_recursive_cp(char *dest, char *src)
         printf("cp fail through ls\n");
         return -1;
     }
-    printf("return ls files: %s\n", return_buff);
+
+    //printf("return ls files: %s\n", return_buff);
     strncpy(subpath_buff, return_buff, PATH_SIZE);
     int subpath_len = strlen(subpath_buff);
     int i;
@@ -529,7 +532,7 @@ int shell_cp(char *dst, char *src)
 
     chdir(dst);
     pwd(abs_dst, PATH_SIZE);
-    printf("3 abs_dst: %s\n", abs_dst);
+    // printf("3 abs_dst: %s\n", abs_dst);
     chdir(pwd_buff);
     printf("cd'ing into initial src %d\n", src);
     chdir(src);
@@ -766,11 +769,13 @@ int main(int argc, char *argv[])
 
         if (!strcmp(command_args[0], "cp") && !strcmp(command_args[1], "-r") && cmd_extract_status == 4)
         {
-
-            cmd_ret_val = shell_cp(command_args[3], command_args[2]);
+            strcpy(src_buff, command_args[2]);
+            strcpy(dest_buff, command_args[3]);
+            cmd_ret_val = shell_cp(dest_buff, src_buff);
             if (cmd_ret_val != 0)
             {
-                printf("cp: failed to copy %s to %s\n", command_args[3], command_args[2]);
+                printf("cp: failed to copy %s to %s\n", command_args[2], command_args[3]);
+                // shell_rm(command_args[3]);
             }
         }
 
@@ -793,6 +798,19 @@ int main(int argc, char *argv[])
         if (!strcmp(command_args[0], "rm") && !strcmp(command_args[1], "-r") && cmd_extract_status == 3)
         {
             shell_rm(command_args[2]);
+        }
+
+        if (!strcmp(command_args[0], "mv") && cmd_extract_status == 3)
+        {
+            strcpy(src_buff, command_args[1]);
+            strcpy(dest_buff, command_args[2]);
+            cmd_ret_val = shell_cp(dest_buff, src_buff);
+            if (cmd_ret_val != 0)
+            {
+                printf("mv: failed to move %s to %s\n", command_args[1], command_args[2]);
+                // shell_rm(command_args[2]);
+            }
+            shell_rm(command_args[1]);
         }
     }
     return 0;
