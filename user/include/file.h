@@ -64,6 +64,6 @@ struct file
 #define chdir(path) sys_chdir((path))
 #define is_dir(path) sys_is_dir((path))
 #define ls(path) sys_ls((path))
-#define pwd(path) sys_pwd((path))
+#define pwd(path, n) sys_pwd((path), (n))
 
 #endif /* !_USER_FILE_H_ */

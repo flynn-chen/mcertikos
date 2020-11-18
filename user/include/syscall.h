@@ -265,7 +265,7 @@ static gcc_inline int sys_is_dir(char *path)
 {
   int errno, ret;
   int length = strlen(path);
-  if (length > 10000)
+  if (length >= 10000)
   {
     return -1;
   }
@@ -281,7 +281,7 @@ static gcc_inline int sys_is_dir(char *path)
   return errno ? -1 : ret;
 }
 
-static gcc_inline int sys_pwd(char *buff)
+static gcc_inline int sys_pwd(char *buff, int n)
 {
   int errno, ret;
 
@@ -289,7 +289,8 @@ static gcc_inline int sys_pwd(char *buff)
                : "=a"(errno), "=b"(ret)
                : "i"(T_SYSCALL),
                  "a"(SYS_pwd),
-                 "b"(buff)
+                 "b"(buff),
+                 "c"(n)
                : "cc", "memory");
   return errno ? -1 : 0;
 }

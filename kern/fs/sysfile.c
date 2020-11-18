@@ -604,7 +604,7 @@ void sys_is_dir(tf_t *tf)
 {
     unsigned int uva = syscall_get_arg2(tf); //check user address doesn't falls in kernel mem
     int path_length = syscall_get_arg3(tf);
-    if (uva < VM_USERLO || uva + LS_BUFF_SIZE > VM_USERHI)
+    if (uva < VM_USERLO || uva + path_length + 1 > VM_USERHI)
     {
         syscall_set_retval1(tf, -1);
         syscall_set_errno(tf, E_INVAL_ADDR);
@@ -677,18 +677,17 @@ void reverse_string(char *string)
     }
 }
 
-#define name_buff_size 10000
-char final_name[name_buff_size];
 void sys_pwd(tf_t *tf)
 {
     unsigned int uva = syscall_get_arg2(tf); //check user address doesn't falls in kernel mem
-    // int path_length = syscall_get_arg3(tf);
-    if (uva < VM_USERLO || uva + LS_BUFF_SIZE > VM_USERHI)
+    int path_length = syscall_get_arg3(tf);
+    if (uva < VM_USERLO || uva + path_length > VM_USERHI)
     {
         syscall_set_retval1(tf, -1);
         syscall_set_errno(tf, E_INVAL_ADDR);
         return;
     }
+    char final_name[path_length];
 
     //   /root/sub1/sub2
     // pwd = sub2
@@ -707,13 +706,13 @@ void sys_pwd(tf_t *tf)
     {
         final_name[0] = '/';
         final_name[1] = '\0';
-        pt_copyout(final_name, get_curid(), uva, name_buff_size);
+        pt_copyout(final_name, get_curid(), uva, path_length);
         syscall_set_errno(tf, E_SUCC);
         syscall_set_retval1(tf, 0);
         return;
     }
 
-    memset(final_name, 0, name_buff_size);
+    memset(final_name, 0, path_length);
     struct dirent de;
     unsigned int de_size = sizeof(de);
     unsigned int off;
@@ -739,7 +738,7 @@ void sys_pwd(tf_t *tf)
     }
 
     reverse_string(final_name);
-    pt_copyout(final_name, get_curid(), uva, name_buff_size);
+    pt_copyout(final_name, get_curid(), uva, path_length);
     syscall_set_errno(tf, E_SUCC);
     syscall_set_retval1(tf, 0);
     tcb_set_cwd(get_curid(), original_inode);

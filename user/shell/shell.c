@@ -7,18 +7,42 @@
 
 #define exit(...) return __VA_ARGS__
 #define CMD_NUM_ARGS 4
-#define CMD_BUFF_SIZE 1024
+#define CMD_BUFF_SIZE 10000
 #define DIRSIZ 14
+#define PATH_SIZE 256
 
 char buff[CMD_BUFF_SIZE];
 char command_args[CMD_NUM_ARGS][CMD_BUFF_SIZE];
 char return_buff[10000];
-char pwd_buff[1024];
+char pwd_buff[PATH_SIZE];
+char abs_dst[PATH_SIZE];
 // 1 command: rm, ls etc.
 // 2 flags: -r
 // 3 target 1: filename, dirname
 // 4 target 2: filename, dirname
 
+void append_with_slash(char *orig, char *extra)
+{
+    int orig_len = strlen(orig);
+    int extra_len = strlen(extra);
+    orig[orig_len++] = '/';
+
+    for (int i = 0; i < extra_len; i++)
+    {
+        orig[i + orig_len] = extra[i];
+    }
+    orig[orig_len + extra_len] = '\0';
+}
+
+void truncate(char *orig, int new_len)
+{
+    int orig_len = strlen(orig);
+    while (orig_len > new_len)
+    {
+        orig[orig_len - 1] = '\0';
+        orig_len--;
+    }
+}
 int file_exist(char *path)
 {
     int fd;
@@ -91,6 +115,8 @@ void zero_cmd_buff()
 {
     memzero(buff, CMD_BUFF_SIZE);
     memzero(return_buff, 10000);
+    memzero(pwd_buff, PATH_SIZE);
+    memzero(abs_dst, PATH_SIZE);
     for (unsigned int command_idx = 0; command_idx < CMD_NUM_ARGS; command_idx++)
     {
         memzero(command_args[command_idx], CMD_BUFF_SIZE);
@@ -147,7 +173,7 @@ int shell_append(char *string, char *path)
     return 0;
 }
 
-int shell_copy(char *path1, char *path2)
+int shell_copy_file(char *path1, char *path2)
 {
     if (shell_cat(path1) != 0)
     {
@@ -162,29 +188,32 @@ int shell_copy(char *path1, char *path2)
 
 int shell_recursive_rm(char *path)
 {
+    printf("called shell_recursive_rm with %s\n", path);
     int return_val, i;
-    char subpath_buff[1024];
+    char subpath_buff[PATH_SIZE];
     char *current_file;
     int subpath_len;
-    if (!is_directory(path))
+    int is_dir_ret = is_directory(path);
+    if (is_dir_ret == 0)
     {
-        //printf("rming %s\n", path);
+        printf("rming %s\n", path);
         return_val = unlink(path);
         return return_val;
     }
-    else
+    else if (is_dir_ret == 1)
     {
-        //printf("cding %s\n", path);
+        printf("cding %s\n", path);
         if (chdir(path))
         {
-            printf("rm: cd failed");
+            printf("rm: cd failed\n");
         }
 
         //get all files in current dir
         return_buff[0] = '.';
         return_buff[1] = '\0';
         return_val = ls(return_buff); //gotta use heap return buff cuz user stack reaches VM_USR_HI
-        strncpy(subpath_buff, return_buff, 1024);
+        printf("return ls files: %s\n", return_buff);
+        strncpy(subpath_buff, return_buff, PATH_SIZE);
         subpath_len = strlen(subpath_buff);
         for (i = 0; i < subpath_len; i++)
         {
@@ -222,14 +251,24 @@ int shell_recursive_rm(char *path)
         }
         return 0;
     }
+    else
+    {
+        printf("is_dir failed. WHY!\n");
+        return -1;
+    }
 }
 
 // path = a/b/c
 int shell_rm(char *path)
 {
+    if (!file_exist(path))
+    {
+        printf("rm: invalid path: %s\n", path);
+        return -1;
+    }
     int path_len = strlen(path);
     char *target = path;
-
+    int should_cd = 1;
     for (int i = path_len - 1; i >= 0; i--)
     {
         if (i == path_len - 1 && path[i] == '/')
@@ -239,85 +278,309 @@ int shell_rm(char *path)
         else if (path[i] == '/')
         {
             target = &path[i + 1];
+            path[i] = '\0';
             break;
         }
-        else if (i == 0)
+        else if (i == 0) //rm -r a
         {
             target = path;
+            should_cd = 0;
             break;
         }
     }
-
-    pwd(pwd_buff);
-    chdir(path);
-    chdir("..");
+    printf("rm -r target: %s\n", target);
+    pwd(pwd_buff, PATH_SIZE);
+    if (should_cd)
+    {
+        chdir(path);
+    }
     shell_recursive_rm(target);
     chdir(pwd_buff);
     return 0;
 }
 
+/*
+    dest = absolute value of the FOLDER we fill in with source's contents
+
+    /a/b
+    /a/d/f
+    /c/
+
+    cp -r a c
+
+    pwd = /a/
+    dest = /c
+    src = ""
+
+    ls our pwd => find b, d
+    for b
+        do dest + src + b = /c/b
+            shell_copy_file /c/b
+    for d
+        chdir(d)
+        if file_exist: 
+            if dir:
+                ok, do nothing
+            if file:
+                fail
+        else
+            mkdir dest + src + d
+        calls r(dest, src + d)
+            pwd = /a/d
+            dest = /c
+            src = d
+
+            ls our pwd => find f
+            for f
+                do dest + src + f => /c/d/f
+
+
+
+    goal
+    /a/b
+    /c/b
+
+*/
 int shell_recursive_cp(char *dest, char *src)
 {
-    int return_val, i;
-    char subpath_buff[1024];
+    printf("calling shell_recursive_cp with %d and %d\n", dest, src);
+    char subpath_buff[PATH_SIZE];
+    int orig_dest_len = strlen(dest);
+    int orig_src_len = strlen(src);
     char *current_file;
-    int subpath_len;
+
+    return_buff[0] = '.';
+    return_buff[1] = '\0';
+    int return_val = ls(return_buff); //gotta use heap return buff cuz user stack reaches VM_USR_HI
+    if (return_val == -1)
+    {
+        printf("cp fail through ls\n");
+        return -1;
+    }
+    printf("return ls files: %s\n", return_buff);
+    strncpy(subpath_buff, return_buff, PATH_SIZE);
+    int subpath_len = strlen(subpath_buff);
+    int i;
+
+    for (i = 0; i < subpath_len; i++)
+    {
+        if (subpath_buff[i] == ' ')
+        {
+            subpath_buff[i] = '\0';
+        }
+    }
+
+    //for every file in current dir
+    for (i = 0; i < subpath_len; i += (strlen(current_file) + 1))
+    {
+        current_file = &subpath_buff[i];
+        if (strcmp(current_file, ".") && strcmp(current_file, ".."))
+        {
+            printf("current file: %s\n", current_file);
+            if (!is_directory(current_file))
+            {
+                // shell copy to: dest + src + b
+                append_with_slash(dest, src);
+                append_with_slash(dest, current_file);
+                // copy current_file to dest
+                shell_copy_file(current_file, dest);
+                truncate(dest, orig_dest_len);
+            }
+            else
+            {
+                chdir(current_file);
+                append_with_slash(dest, src);
+                append_with_slash(dest, current_file);
+                if (file_exist(dest))
+                {
+                    if (!is_directory(dest))
+                    {
+                        printf("cp -r fail\n");
+                        return -1;
+                    }
+                    // else: do nothing, directory is already there
+                }
+                else
+                {
+                    // create a new directory
+                    mkdir(dest);
+                }
+                append_with_slash(src, current_file);
+                shell_recursive_cp(dest, src);
+                truncate(dest, orig_dest_len);
+                truncate(src, orig_src_len);
+            }
+        }
+    }
+    return 0;
+}
+
+// path = a/b/c
+int shell_cp(char *dst, char *src)
+{
     if (!file_exist(src))
     {
-        printf("cp: %s does not exist\n", src);
-        return 0;
+        printf("cp -r: invalid path: %s\n", src);
+        return -1;
     }
+    int src_len = strlen(src);
+    char *src_target = src;
+    int cp_ret_val;
+    for (int i = src_len - 1; i >= 0; i--)
+    {
+        if (i == src_len - 1 && src[i] == '/')
+        {
+            continue;
+        }
+        else if (src[i] == '/')
+        {
+            src_target = &src[i + 1];
+            src[i] = '\0';
+            break;
+        }
+        else if (i == 0) //rm -r a
+        {
+            src_target = src;
+            break;
+        }
+    }
+    printf("cp -r src: %s to dst:%s\n", src_target, dst);
+    pwd(pwd_buff, PATH_SIZE);
+    printf("got pwd: %s\n", pwd_buff);
+
+    /*
+        /
+        /a/b
+        /c       <- file
+        > cp -r a c
+    */
+    if (file_exist(dst) && !is_directory(dst))
+    {
+        printf("cp: %s: Not a directory\n", dst);
+        return -1;
+    }
+    /*
+        /
+        /a/b
+        /c/       <- directory
+        > cp -r a c
+        goal:
+        /
+        /a/b
+        /c/a/b
+    */
+    if (is_directory(dst))
+    {
+        // make a new dir called src, and copy src's contents into it
+        append_with_slash(dst, src_target);
+        if (file_exist(dst))
+        {
+            if (!is_directory(dst))
+            {
+                printf("cp: %s: Not a directory\n", dst);
+                return -1;
+            }
+            else
+            {
+                // it exists and is a dir, this is fine
+            }
+        }
+        else
+        {
+            cp_ret_val = mkdir(dst);
+            if (cp_ret_val != 0)
+            {
+                printf("cp -r: %s not a directory\n", dst);
+                return -1;
+            }
+        }
+    }
+    /*
+        /
+        /a/b
+        > cp -r a c
+        goal:
+        /
+        /a/b
+        /c/b
+    */
     else
     {
-        printf("cding %s\n", path);
-        if (chdir(path))
+        printf("HI! we couldn't find anything called %s\n", dst);
+        // make a new dir called dst, and copy src'c contents into it
+        cp_ret_val = mkdir(dst);
+        if (cp_ret_val != 0)
         {
-            printf("rm: cd failed");
-        }
-
-        //get all files in current dir
-        subpath_buff[0] = '.';
-        subpath_buff[1] = '\0';
-        printf("lsing: %s\n", subpath_buff);
-        ls(subpath_buff);
-        printf("lsed: %s\n", subpath_buff);
-        subpath_len = strlen(subpath_buff);
-        for (i = 0; i < subpath_len; i++)
-        {
-            if (subpath_buff[i] == ' ')
-            {
-                subpath_buff[i] = '\0';
-            }
-        }
-
-        //for every file in current dir
-        for (i = 0; i < subpath_len; i += (strlen(current_file) + 1))
-        {
-            current_file = &subpath_buff[i];
-            printf("current file: %s\n", current_file);
-            if (!strcmp(&current_file[i], ".") && !strcmp(&current_file[i], ".."))
-            {
-                return_val = shell_recursive_rm(&current_file[i]);
-                if (return_val)
-                {
-                    printf("rm: failed to remove %s\n", current_file[i]);
-                    return -1;
-                }
-            }
-        }
-
-        if (chdir(".."))
-        {
-            printf("rm: cd .. failed");
-        }
-
-        if (unlink(path))
-        {
-            printf("rm: unlink failed for %s\n", path);
+            printf("cp -r: %s not a directory\n", dst);
             return -1;
         }
-        return 0;
     }
+
+    // the contents of dst must equal the contents of src_target
+    /*
+
+    /a/b
+    /d/a
+    
+    > cp -r a d
+    ERROR
+
+    */
+
+    chdir(dst);
+    pwd(abs_dst, PATH_SIZE);
+    printf("3 abs_dst: %s\n", abs_dst);
+    chdir(pwd_buff);
+    printf("cd'ing into initial src %d\n", src);
+    chdir(src);
+    memzero(src_target, strlen(src_target));
+    shell_recursive_cp(abs_dst, src_target);
+    printf("going back to %s\n", pwd_buff);
+    chdir(pwd_buff);
+    return 0;
+    // if dst exists, we make a new dir inside of it that's called src
+    // if dst doesn't exist, make a new dir called dst and fill it with src
+
+    /*
+        /
+        /a/b
+
+        > cp -r a c
+
+        /
+        /a/b
+        /c/b
+
+        > cp -r a c
+
+        /
+        /a/b
+        /c/b
+        /c/a/b
+    
+    */
+    // make the target directory?
+
+    /*
+    cp -r /a/b/c   usr/d
+    dst = usr/d
+    src = /a/b/c
+
+    want usr/d/c == /a/b/c
+
+    store pwd 
+        
+    cd to destination
+        usr/d/c
+    store pwd into abs_dst <= gets us an absolute path to the destination
+        abs_dst: /lib/usr/d/c
+
+    cd to pwd
+    cd to source
+        in /a/b/c
+    inspect and copy to abs_dst
+
+    */
 }
 
 int main(int argc, char *argv[])
@@ -369,7 +632,7 @@ int main(int argc, char *argv[])
                 printf("wrong arguments for mkdir with %d argument\n", cmd_extract_status);
                 continue;
             }
-            printf("about to call mkdir with %s\n", command_args[1]);
+            // printf("about to call mkdir with %s\n", command_args[1]);
             cmd_ret_val = mkdir(command_args[1]);
             if (cmd_ret_val < 0)
             {
@@ -429,7 +692,7 @@ int main(int argc, char *argv[])
             {
                 printf("pwd: wrong number of arguments");
             }
-            pwd(return_buff);
+            pwd(return_buff, PATH_SIZE);
             printf("%s\n", return_buff);
         }
 
@@ -490,10 +753,10 @@ int main(int argc, char *argv[])
             {
                 printf("cp: wrong number of arguments");
             }
-            cmd_ret_val = shell_copy(command_args[1], command_args[2]);
+            cmd_ret_val = shell_copy_file(command_args[1], command_args[2]);
             if (cmd_ret_val == -1)
             {
-                printf("cp: failed to read from %s\n", command_args[2]);
+                printf("cp: failed to read from %s\n", command_args[1]);
             }
             if (cmd_ret_val == -2)
             {
@@ -501,9 +764,23 @@ int main(int argc, char *argv[])
             }
         }
 
+        if (!strcmp(command_args[0], "cp") && !strcmp(command_args[1], "-r") && cmd_extract_status == 4)
+        {
+
+            cmd_ret_val = shell_cp(command_args[3], command_args[2]);
+            if (cmd_ret_val != 0)
+            {
+                printf("cp: failed to copy %s to %s\n", command_args[3], command_args[2]);
+            }
+        }
+
         if (!strcmp(command_args[0], "rm") && cmd_extract_status == 2)
         {
-            if (is_directory(command_args[1]) == 1)
+            if (!file_exist(command_args[1]))
+            {
+                printf("rm: invalid path: %s\n", command_args[1]);
+            }
+            else if (is_directory(command_args[1]) == 1)
             { // if it is a directory
                 printf("rm: %s is a directory\n", command_args[1]);
             }
