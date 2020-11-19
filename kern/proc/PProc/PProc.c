@@ -12,10 +12,19 @@ extern tf_t uctx_pool[NUM_IDS];
 
 extern unsigned int last_active[NUM_CPUS];
 
+void log_init();
+
 void proc_start_user(void)
 {
     unsigned int cur_pid = get_curid();
     unsigned int cpu_idx = get_pcpu_idx();
+
+    static int started = FALSE;
+
+    if (get_curid() != 1 && started == FALSE) {
+        started = TRUE;
+        log_init();
+    }
 
     kstack_switch(cur_pid);
     set_pdir_base(cur_pid);
