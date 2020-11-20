@@ -9,6 +9,179 @@ To use sample lab 1 solutions: copy files in samples/ to appropriate directories
 
 List here the following info:
 1. who you have worked with
+
+Flynn Chen (zc264) and Keaton Mueller (kim6)
+
 2. whether you coded this assignment together, and if not, who worked on which part
+
+We coded all of the assignment together.
+
 3. brief description of what you have implemented
+
+Part 1: 
+    We implemented thread_sleep and thread_wakeup according to the specifications
+    of the assignment.
+
+    thread_sleep:
+        We first acquire the scheduler lock, and then release the held lock. 
+        Then we set the appropriate threads to sleep and record the memory 
+        address into the channel. Next, we release the scheduler lock,
+        switch into a new context, and acquire the scheduler lock again in the
+        new process, and set the channel, release the scheduler lock and reacquire
+        the held lock. 
+
+    thread_wakeup: 
+        We check for every process if it is in the ready state. If it is, then we place
+        it into the ready queue of the process. 
+
+Part 3:
+    We implemented the directory, path, and syscall layer. 
+
+    Directory Layer - dir_lookup:
+        We opened the directory as a file, and read in the directory entries one by one.
+        If there is a file that points to another directory with the name we want to match,
+        then return the inode of the new file.
+
+    Directory Layer - dir_link:
+        Here we write the content of the give directory pointer into the directory file. We
+        first find the file by iterating through the directory, then uses inode_write to 
+        change the entries of the directory. 
+
+    Path Layer - skipelem:
+        We ignore front and trailing slashes in the path, then copy the name of the path element
+        into another char pointer to extract the name. We also make sure that the name does not 
+        exceed DIRSIZ lengths. 
+
+    Path Layer - namex:
+        In the while loop, we lock the inode and check if it is a directory (and return with error
+        if it is not). Then we look up the name in the directory path. If an inode that matches
+        the name is found, we traverse to the next level of the directory by repeating the same 
+        process. If we are looking the inode of the parent directory in the path name, then we 
+        added conditions to return one level earlier. 
+
+    Syscall Layer - fdalloc:
+        For a particular process on a particular CPU, we scan the file tables for locations to 
+        allocate a new file descriptor by iterating through the table. If a new location is found,
+        then we call the tcb_set_openfiles to mark the file descriptor location for the new file.
+
+    Syscall Layer - sys_read:
+        First, we obtained the user parameters and performed extensive checks on the validity of 
+        the parameters. Then, we find the file descriptor in the table, transport the information
+        from the file into kernel memory buffer (no larger than 10,000 bytes), and then moving
+        them into the user memory address specified by the parameter. 
+    
+    Syscall Layer - sys_write:
+        First, we obtained the user parameters and performed extensive checks on the validity of 
+        the parameters. Then, we find the file descriptor in the table, transport the information
+        from the user address into kernel memory buffer (no larger than 10,000 bytes), and then 
+        moving them into the file. 
+
+    Syscall Layer - sys_close:
+        Here, we found the file descriptor, and removed it from the file table using file_close.
+
+    Syscall Layer - sys_fstat:
+        First, we obtained the user parameters and performed extensive checks on the validity of 
+        the parameters. We found the file descriptor, and called file_stat to get the file
+        statistics and stored the information to the kernel memory buffer. Lastly, we copied 
+        the kernel memory to the user memory so they can see it.
+    
+Part 4:
+    We implemented a simple shell and followed the procedures below to add new system calls for 
+    a new shell functionality:
+
+        Define a macro somewhere to route "name" to "sys_name" (ex: define it in /user/include/file.h)
+            1. Write new inline assembly in /user/include/syscall.h
+            2. Add new SYS_name enum to /kern/lib/syscall.h
+            3. Add new switch case for SYS_name in /kern/trap/TDispatch/TDispatch.c
+            4. Write new sys_name function (ex: write it in /kern/trap/TSyscall/TSyscall.c or 
+                /kern/fs/sysfile.c), and make sure to add it to the header file.
+
+    In terms of structure, we initiated a user process, and write a while-loop to take in user commands
+    from the terminal. Depending on the commands, we then execute the corresponding functions.
+
+    helper functions - zero_cmd_buff:
+        At the beginning of the while loop that asks for user command, we zero out all the buffers so 
+        that any remaining information from the previous command would not affect the current command.
+
+    helper functions - extract_cmd:
+        We read the line from the user terminal as a string, but then parses each element of the string
+        into an array of words in that command called command_args. With this array, we can parse out the
+        elements in a user command. 
+    
+    helper functions - append_with_slash:
+        A function that helps us add slashes to keep track of current directory when iterating through
+        the directory structure for recursive commands. 
+    
+    helper functions - truncate:
+        Truncate the file name so we could return from the folder we are recursing in. 
+
+    helper functions - file_exist:
+        Try opening the file to see if a file (either a file or a directory in the form of a file) exists.
+
+    helper functions - is_directory:
+        Check if the file exists, and then check if the file is a directory using a system call is_dir
+
+    system call - is_dir (sys_is_dir):
+        Given a path to a file, we check if the file is a directory by checking the file type. This could 
+        only be done in a kernel, which is why we implemented a system function for this. 
+
+    system call - pwd (sys_pwd):
+        We find the path to the current file directory recorded in the tcb table by iteratively getting
+        the parent directory with namei(".."). If parent directory name equals current file name, then
+        it means we have reached the root. We collect all of the files that we have traversed, added
+        slashes to make it a path, and return it to the user. 
+
+    system call - ls (sys_ls):
+        We implemented the ls command by iteratively reading the directory entries from the file of the 
+        directory, then copying the sub file name into a string, and returning the string back to the user.
+
+    commands - ls:
+        We implemented ls in the pwd by just calling sys_ls. For a specific file, we use file_exist to see
+        if that file exists. If the file exists and it is not a directory, then we return the name of the
+        file. If it is a directory, we temporarily change to that directory, get the files using sys_ls,
+        and changing back to pwd.  
+    
+    commands - cd:
+        We used the chdir system call.
+
+    commands - cp (and cp -r):
+        For a file, we open and read from an old file, copy the contents and write to the new file using the 
+        shell_copy function. For a directory, it is much more complicated. We use the shell_cp function to 
+        go to the src directory to prepare for the recursive walk, and use the shell_recursive_cp function 
+        for the recursive walk in copying files in the src to the destination. We go into a new directory, 
+        use sys_ls to figure out what files are there, and copy the file from the current src hierarchy into
+        the destiantion hierarchy. If we encounter a directory, then we go into that directory and recurse. 
+        If the current directory is done, we move on to a level above.
+
+    commands - mv:
+        we implemented mv by chaining cp and rm.
+
+    commands - rm (and rm -r): 
+        For a file, we delete the file by unlinking. For a directory, we use the shell_cp==rm function to 
+        go to the parent of the directory to be removed to prepare for the recursive walk, and use the 
+        shell_recursive_rm function for the recursive walk in to remove files and directories. We go into 
+        a new directory, use sys_ls to figure out what files are there, and delete the file from the 
+        directory. If we encounter a directory, then we go into that directory and recurse. If the current 
+        directory is done, we move on to a level above and delete the file we were just in. 
+
+    commands - mkdir:
+        We implemented mkdir using the syscall function sys_mkdir.
+
+    commands - cat:
+        We cat by reading the content of the file and printing
+
+    commands - touch:
+        We touch by opening a file with create permission and closing without writing anything in it.
+
+    commands - write:
+        We write into the file by using the write system call, which overwrites existing data if there are
+        any.
+
+    commands - append:
+        We append by reading in all the bytes of a file, concatenating the string to the end of the contents
+        and rewriting all of the content back into the file using write. Here, we use the **prefix** form.
+    
+    
+
 4. and anything else you would like us to know
+None
