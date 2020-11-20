@@ -812,7 +812,19 @@ int main(int argc, char *argv[])
             {
                 printf("cp: wrong number of arguments");
             }
-            cmd_ret_val = shell_copy_file(command_args[1], command_args[2]);
+            else if (!file_exist(command_args[1]))
+            {
+                printf("cp: invalid path: %s\n", command_args[1]);
+            }
+            else if (is_directory(command_args[1]) == 1)
+            { // if it is a directory
+                printf("cp: %s is a directory\n", command_args[1]);
+            }
+            else
+            {
+                cmd_ret_val = shell_copy_file(command_args[1], command_args[2]);
+            }
+
             if (cmd_ret_val == -1)
             {
                 printf("cp: failed to read from %s\n", command_args[1]);
@@ -860,7 +872,20 @@ int main(int argc, char *argv[])
         {
             strcpy(src_buff, command_args[1]);
             strcpy(dest_buff, command_args[2]);
-            cmd_ret_val = shell_cp(dest_buff, src_buff);
+            if (!file_exist(command_args[1]))
+            {
+                printf("mv: invalid path: %s\n", command_args[1]);
+            }
+
+            if (is_directory(command_args[1]) == 1)
+            { // if it is a directory
+                cmd_ret_val = shell_cp(dest_buff, src_buff);
+            }
+            else
+            {
+                cmd_ret_val = shell_copy_file(src_buff, dest_buff);
+            }
+
             if (cmd_ret_val != 0)
             {
                 printf("mv: failed to move %s to %s\n", command_args[1], command_args[2]);
