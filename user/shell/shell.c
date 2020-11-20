@@ -343,9 +343,41 @@ int shell_rm(char *path)
     /c/b
 
 */
+void print_pwd()
+{
+    char temp_buff[256];
+    pwd(temp_buff, 256);
+    printf("=== pwd: %s ===\n", temp_buff);
+}
+/*
+    dest = ALWAYS: the absolute path of the ROOT destination folder
+    src = the extension from the root source folder corresponding to the pwd
+
+    dest + src = directory to put files
+
+    ex:
+    /a/b1/f
+    /a/b2/f
+
+    > cp -r a new_a
+
+    initial call:
+        dest = new_a
+        src = 
+        pwd = a
+
+        recursive call:
+            dest = new_a
+            src = b1
+            pwd = a/b1
+        recursive call:
+            dest = new_a
+            src = b2
+            pwd = a/b2
+*/
 int shell_recursive_cp(char *dest, char *src)
 {
-    // printf("calling shell_recursive_cp with %d and %d\n", dest, src);
+    printf("calling shell_recursive_cp with dest = %s and src = %s\n", dest, src);
     char subpath_buff[PATH_SIZE];
     int orig_dest_len = strlen(dest);
     int orig_src_len = strlen(src);
@@ -360,7 +392,7 @@ int shell_recursive_cp(char *dest, char *src)
         return -1;
     }
 
-    //printf("return ls files: %s\n", return_buff);
+    printf("return ls files: %s\n", return_buff);
     strncpy(subpath_buff, return_buff, PATH_SIZE);
     int subpath_len = strlen(subpath_buff);
     int i;
@@ -379,8 +411,10 @@ int shell_recursive_cp(char *dest, char *src)
         current_file = &subpath_buff[i];
         if (strcmp(current_file, ".") && strcmp(current_file, ".."))
         {
-            printf("current file: %s\n", current_file);
-            if (!is_directory(current_file))
+            int ret_val = is_directory(current_file);
+            // print_pwd();
+            // printf("pwd should be (relative to root): %s   current file: %s    is dir: %d\n", src, current_file, ret_val);
+            if (ret_val == 0)
             {
                 // shell copy to: dest + src + b
                 // printf("current state: %s and %s and %s\n", dest, src, current_file);
@@ -391,7 +425,7 @@ int shell_recursive_cp(char *dest, char *src)
                 shell_copy_file(current_file, dest);
                 truncate(dest, orig_dest_len);
             }
-            else
+            else if(ret_val == 1)
             {
                 chdir(current_file);
                 append_with_slash(dest, src);
@@ -410,11 +444,14 @@ int shell_recursive_cp(char *dest, char *src)
                     // create a new directory
                     mkdir(dest);
                 }
-                truncate(dest, orig_dest_len);
+                truncate(dest, orig_dest_len); 
                 append_with_slash(src, current_file);
                 shell_recursive_cp(dest, src);
-                truncate(dest, orig_dest_len);
+                chdir(".."); 
                 truncate(src, orig_src_len);
+            }
+            else{
+                printf("wha???\n");
             }
         }
     }
@@ -537,7 +574,7 @@ int shell_cp(char *dst, char *src)
     pwd(abs_dst, PATH_SIZE);
     // printf("3 abs_dst: %s\n", abs_dst);
     chdir(pwd_buff);
-    printf("cd'ing into initial src %d\n", src);
+    printf("cd'ing into initial src %s\n", src);
     chdir(src);
     memzero(src_target, strlen(src_target));
     shell_recursive_cp(abs_dst, src_target);
@@ -595,7 +632,7 @@ int main(int argc, char *argv[])
     {
         zero_cmd_buff();
         printf("> ");
-        readline(buff);
+        readline(buff); // TODO: should we limit readlines to 256 chars?
         int cmd_extract_status = extract_cmd();
         int cmd_ret_val = 0;
         switch (cmd_extract_status)
