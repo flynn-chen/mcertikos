@@ -383,9 +383,11 @@ int shell_recursive_cp(char *dest, char *src)
             if (!is_directory(current_file))
             {
                 // shell copy to: dest + src + b
+                // printf("current state: %s and %s and %s\n", dest, src, current_file);
                 append_with_slash(dest, src);
                 append_with_slash(dest, current_file);
                 // copy current_file to dest
+                // printf("its not a dir, so we're copying %s to %s\n", current_file, dest);
                 shell_copy_file(current_file, dest);
                 truncate(dest, orig_dest_len);
             }
@@ -408,6 +410,7 @@ int shell_recursive_cp(char *dest, char *src)
                     // create a new directory
                     mkdir(dest);
                 }
+                truncate(dest, orig_dest_len);
                 append_with_slash(src, current_file);
                 shell_recursive_cp(dest, src);
                 truncate(dest, orig_dest_len);
