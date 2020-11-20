@@ -9,7 +9,7 @@
 #define CMD_NUM_ARGS 4
 #define CMD_BUFF_SIZE 10000
 #define DIRSIZ 14
-#define PATH_SIZE 256
+#define PATH_SIZE 1024
 
 char buff[PATH_SIZE];
 char dest_buff[PATH_SIZE];
@@ -75,25 +75,40 @@ int extract_cmd()
 {
     unsigned int command_idx = 0;
     char *front, *end;
-    int len;
+    int len, extra;
 
     // extract arguments
     end = buff;
     for (command_idx = 0; command_idx < CMD_NUM_ARGS && *end != '\0'; command_idx++)
     {
+        extra = 0;
         front = end;
         while (*front == ' ') //find first non-space element
         {
             front++;
         }
 
-        end = front;
-        while (*end != ' ' && *end != '\0') //find the next space or hit the end
+        if (*front == '"')
         {
+            front++;
+            end = front;
+            while (*end != '"' && *end != '\0') //find the next space or hit the end
+            {
+                end++;
+            }
             end++;
+            extra = 1;
+        }
+        else
+        {
+            end = front;
+            while (*end != ' ' && *end != '\0') //find the next space or hit the end
+            {
+                end++;
+            }
         }
 
-        len = end - front; //calculate length of path element
+        len = end - front - extra; //calculate length of path element
         if (len + 1 > CMD_BUFF_SIZE)
         {
             return -1;
@@ -190,7 +205,7 @@ int shell_copy_file(char *path1, char *path2)
 
 int shell_recursive_rm(char *path)
 {
-    printf("called shell_recursive_rm with %s\n", path);
+    // printf("called shell_recursive_rm with %s\n", path);
     int return_val, i;
     char subpath_buff[PATH_SIZE];
     char *current_file;
@@ -198,13 +213,13 @@ int shell_recursive_rm(char *path)
     int is_dir_ret = is_directory(path);
     if (is_dir_ret == 0)
     {
-        printf("rming %s\n", path);
+        // printf("rming %s\n", path);
         return_val = unlink(path);
         return return_val;
     }
     else if (is_dir_ret == 1)
     {
-        printf("cding %s\n", path);
+        // printf("cding %s\n", path);
         if (chdir(path))
         {
             printf("rm: cd failed\n");
@@ -214,7 +229,7 @@ int shell_recursive_rm(char *path)
         return_buff[0] = '.';
         return_buff[1] = '\0';
         return_val = ls(return_buff); //gotta use heap return buff cuz user stack reaches VM_USR_HI
-        printf("return ls files: %s\n", return_buff);
+        // printf("return ls files: %s\n", return_buff);
         strncpy(subpath_buff, return_buff, PATH_SIZE);
         subpath_len = strlen(subpath_buff);
         for (i = 0; i < subpath_len; i++)
@@ -231,7 +246,7 @@ int shell_recursive_rm(char *path)
             current_file = &subpath_buff[i];
             if (strcmp(current_file, ".") && strcmp(current_file, ".."))
             {
-                printf("current file: %s\n", current_file);
+                // printf("current file: %s\n", current_file);
                 return_val = shell_recursive_rm(current_file);
                 if (return_val)
                 {
@@ -290,7 +305,7 @@ int shell_rm(char *path)
             break;
         }
     }
-    printf("rm -r target: %s\n", target);
+    // printf("rm -r target: %s\n", target);
     pwd(pwd_buff, PATH_SIZE);
     if (should_cd)
     {
@@ -345,9 +360,9 @@ int shell_rm(char *path)
 */
 void print_pwd()
 {
-    char temp_buff[256];
-    pwd(temp_buff, 256);
-    printf("=== pwd: %s ===\n", temp_buff);
+    char temp_buff[PATH_SIZE];
+    pwd(temp_buff, PATH_SIZE);
+    // printf("=== pwd: %s ===\n", temp_buff);
 }
 /*
     dest = ALWAYS: the absolute path of the ROOT destination folder
@@ -377,7 +392,7 @@ void print_pwd()
 */
 int shell_recursive_cp(char *dest, char *src)
 {
-    printf("calling shell_recursive_cp with dest = %s and src = %s\n", dest, src);
+    // printf("calling shell_recursive_cp with dest = %s and src = %s\n", dest, src);
     char subpath_buff[PATH_SIZE];
     int orig_dest_len = strlen(dest);
     int orig_src_len = strlen(src);
@@ -392,7 +407,7 @@ int shell_recursive_cp(char *dest, char *src)
         return -1;
     }
 
-    printf("return ls files: %s\n", return_buff);
+    // printf("return ls files: %s\n", return_buff);
     strncpy(subpath_buff, return_buff, PATH_SIZE);
     int subpath_len = strlen(subpath_buff);
     int i;
@@ -425,7 +440,7 @@ int shell_recursive_cp(char *dest, char *src)
                 shell_copy_file(current_file, dest);
                 truncate(dest, orig_dest_len);
             }
-            else if(ret_val == 1)
+            else if (ret_val == 1)
             {
                 chdir(current_file);
                 append_with_slash(dest, src);
@@ -444,13 +459,14 @@ int shell_recursive_cp(char *dest, char *src)
                     // create a new directory
                     mkdir(dest);
                 }
-                truncate(dest, orig_dest_len); 
+                truncate(dest, orig_dest_len);
                 append_with_slash(src, current_file);
                 shell_recursive_cp(dest, src);
-                chdir(".."); 
+                chdir("..");
                 truncate(src, orig_src_len);
             }
-            else{
+            else
+            {
                 printf("wha???\n");
             }
         }
@@ -487,9 +503,9 @@ int shell_cp(char *dst, char *src)
             break;
         }
     }
-    printf("cp -r src: %s to dst:%s\n", src_target, dst);
+    // printf("cp -r src: %s to dst:%s\n", src_target, dst);
     pwd(pwd_buff, PATH_SIZE);
-    printf("got pwd: %s\n", pwd_buff);
+    // printf("got pwd: %s\n", pwd_buff);
 
     /*
         /
@@ -549,7 +565,7 @@ int shell_cp(char *dst, char *src)
     */
     else
     {
-        printf("HI! we couldn't find anything called %s\n", dst);
+        // printf("HI! we couldn't find anything called %s\n", dst);
         // make a new dir called dst, and copy src'c contents into it
         cp_ret_val = mkdir(dst);
         if (cp_ret_val != 0)
@@ -574,11 +590,11 @@ int shell_cp(char *dst, char *src)
     pwd(abs_dst, PATH_SIZE);
     // printf("3 abs_dst: %s\n", abs_dst);
     chdir(pwd_buff);
-    printf("cd'ing into initial src %s\n", src);
+    // printf("cd'ing into initial src %s\n", src);
     chdir(src);
     memzero(src_target, strlen(src_target));
     shell_recursive_cp(abs_dst, src_target);
-    printf("going back to %s\n", pwd_buff);
+    // printf("going back to %s\n", pwd_buff);
     chdir(pwd_buff);
     return 0;
     // if dst exists, we make a new dir inside of it that's called src
@@ -649,7 +665,7 @@ int main(int argc, char *argv[])
 
         // for (unsigned int command_idx = 0; command_idx < CMD_NUM_ARGS; command_idx++)
         // {
-        //     printf("argument #%d length: %d: %s \n", command_idx, strlen(command_args[command_idx]), command_args[command_idx]);
+        //     printf("argument #%d length: %d: [%s] \n", command_idx, strlen(command_args[command_idx]), command_args[command_idx]);
         // }
 
         if (!strcmp(command_args[0], "touch"))
@@ -668,7 +684,7 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        if (!strcmp(command_args[0], "mkdir"))
+        else if (!strcmp(command_args[0], "mkdir"))
         {
             if (cmd_extract_status != 2)
             {
@@ -684,7 +700,7 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        if (!strcmp(command_args[0], "cd"))
+        else if (!strcmp(command_args[0], "cd"))
         {
             if (cmd_extract_status != 2)
             {
@@ -699,7 +715,7 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        if (!strcmp(command_args[0], "ls"))
+        else if (!strcmp(command_args[0], "ls"))
         {
             if (cmd_extract_status == 1)
             {
@@ -729,7 +745,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (!strcmp(command_args[0], "pwd"))
+        else if (!strcmp(command_args[0], "pwd"))
         {
             if (cmd_extract_status != 1)
             {
@@ -739,7 +755,7 @@ int main(int argc, char *argv[])
             printf("%s\n", return_buff);
         }
 
-        if (!strcmp(command_args[0], "cat"))
+        else if (!strcmp(command_args[0], "cat"))
         {
             if (cmd_extract_status != 2)
             {
@@ -756,7 +772,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (!strcmp(command_args[0], "write") && cmd_extract_status == 3)
+        else if (!strcmp(command_args[0], "write") && cmd_extract_status == 3)
         {
             if (cmd_extract_status != 3)
             {
@@ -773,7 +789,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (!strcmp(command_args[0], "append") && cmd_extract_status == 3)
+        else if (!strcmp(command_args[0], "append") && cmd_extract_status == 3)
         {
             if (cmd_extract_status != 3)
             {
@@ -790,7 +806,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (!strcmp(command_args[0], "cp") && cmd_extract_status == 3)
+        else if (!strcmp(command_args[0], "cp") && cmd_extract_status == 3)
         {
             if (cmd_extract_status != 3)
             {
@@ -807,7 +823,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (!strcmp(command_args[0], "cp") && !strcmp(command_args[1], "-r") && cmd_extract_status == 4)
+        else if (!strcmp(command_args[0], "cp") && !strcmp(command_args[1], "-r") && cmd_extract_status == 4)
         {
             strcpy(src_buff, command_args[2]);
             strcpy(dest_buff, command_args[3]);
@@ -819,7 +835,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (!strcmp(command_args[0], "rm") && cmd_extract_status == 2)
+        else if (!strcmp(command_args[0], "rm") && cmd_extract_status == 2)
         {
             if (!file_exist(command_args[1]))
             {
@@ -835,12 +851,12 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (!strcmp(command_args[0], "rm") && !strcmp(command_args[1], "-r") && cmd_extract_status == 3)
+        else if (!strcmp(command_args[0], "rm") && !strcmp(command_args[1], "-r") && cmd_extract_status == 3)
         {
             shell_rm(command_args[2]);
         }
 
-        if (!strcmp(command_args[0], "mv") && cmd_extract_status == 3)
+        else if (!strcmp(command_args[0], "mv") && cmd_extract_status == 3)
         {
             strcpy(src_buff, command_args[1]);
             strcpy(dest_buff, command_args[2]);
@@ -851,6 +867,11 @@ int main(int argc, char *argv[])
                 // shell_rm(command_args[2]);
             }
             shell_rm(command_args[1]);
+        }
+
+        else
+        {
+            printf("%s: unrecognized command\n", command_args[0]);
         }
     }
     return 0;

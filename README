@@ -97,7 +97,8 @@ Part 4:
                 /kern/fs/sysfile.c), and make sure to add it to the header file.
 
     In terms of structure, we initiated a user process, and write a while-loop to take in user commands
-    from the terminal. Depending on the commands, we then execute the corresponding functions.
+    from the terminal. Depending on the commands, we then execute the corresponding functions. Our shell
+    assumes that the input per line can be no longer than 1024 characters long. 
 
     helper functions - zero_cmd_buff:
         At the beginning of the while loop that asks for user command, we zero out all the buffers so 
@@ -168,7 +169,7 @@ Part 4:
         We implemented mkdir using the syscall function sys_mkdir.
 
     commands - cat:
-        We cat by reading the content of the file and printing
+        We cat by reading the content of the file and printing. 
 
     commands - touch:
         We touch by opening a file with create permission and closing without writing anything in it.
@@ -177,10 +178,15 @@ Part 4:
         We write into the file by using the write system call, which overwrites existing data if there are
         any.
 
+        ex:
+        > write hello file
+
     commands - append:
         We append by reading in all the bytes of a file, concatenating the string to the end of the contents
         and rewriting all of the content back into the file using write. Here, we use the **prefix** form.
-    
+
+        ex:
+        append new_stuff file
     
 
 4. and anything else you would like us to know
