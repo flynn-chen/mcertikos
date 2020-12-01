@@ -12,6 +12,8 @@ void tcb_set_prev(unsigned int pid, unsigned int prev_pid);
 unsigned int tcb_get_next(unsigned int pid);
 void tcb_set_next(unsigned int pid, unsigned int next_pid);
 void tcb_init_at_id(unsigned int cpu_idx, unsigned int pid);
+unsigned int tcb_get_debugger_id(unsigned int pid);
+void tcb_set_debugger_id(unsigned int pid, unsigned int debugger_id);
 
 void *tcb_get_chan(unsigned int pid);
 void tcb_set_chan(unsigned int pid, void *state);
@@ -26,6 +28,6 @@ void tcb_set_openfiles(unsigned int pid, int fd, struct file *f);
 struct inode *tcb_get_cwd(unsigned int pid);
 void tcb_set_cwd(unsigned int pid, struct inode *d);
 
-#endif  /* _KERN_ */
+#endif /* _KERN_ */
 
-#endif  /* !_KERN_THREAD_PTCBINTRO_H_ */
+#endif /* !_KERN_THREAD_PTCBINTRO_H_ */

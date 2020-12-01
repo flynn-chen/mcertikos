@@ -14,7 +14,8 @@ void syscall_dispatch(tf_t *tf)
 
     nr = syscall_get_arg1(tf);
 
-    switch (nr) {
+    switch (nr)
+    {
     case SYS_puts:
         /*
          * Output a string to the screen.
@@ -49,6 +50,14 @@ void syscall_dispatch(tf_t *tf)
          *   E_INVAL_PID
          */
         sys_spawn(tf);
+        break;
+    case SYS_debug_spawn:
+        // KERN_DEBUG("Dispatched to SYS_debug_spawn\n");
+        sys_debug_spawn(tf);
+        break;
+    case SYS_debug_start:
+        // KERN_DEBUG("Dispatched to SYS_debug_start\n");
+        sys_debug_start(tf);
         break;
     case SYS_yield:
         /*

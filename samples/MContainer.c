@@ -1,5 +1,4 @@
 #include <lib/debug.h>
-#include <lib/spinlock.h>
 #include <lib/x86.h>
 #include "import.h"
 
@@ -14,7 +13,6 @@ struct SContainer
 
 // mCertiKOS supports up to NUM_IDS processes
 static struct SContainer CONTAINER[NUM_IDS];
-static spinlock_t container_lks[NUM_IDS];
 
 /**
  * Initializes the container data for the root process (the one with index 0).
@@ -51,11 +49,6 @@ void container_init(unsigned int mbi_addr)
     CONTAINER[0].parent = 0;
     CONTAINER[0].nchildren = 0;
     CONTAINER[0].used = 1;
-
-    for (idx = 0; idx < NUM_IDS; idx++)
-    {
-        spinlock_init(&container_lks[idx]);
-    }
 }
 
 // Get the id of parent process of process # [id].
@@ -99,8 +92,6 @@ unsigned int container_split(unsigned int id, unsigned int quota)
 {
     unsigned int child, nc;
 
-    spinlock_acquire(&container_lks[id]);
-
     nc = CONTAINER[id].nchildren;
     child = id * MAX_CHILDREN + 1 + nc; // container index for the child process
 
@@ -121,8 +112,6 @@ unsigned int container_split(unsigned int id, unsigned int quota)
     CONTAINER[id].usage += quota;
     CONTAINER[id].nchildren++;
 
-    spinlock_release(&container_lks[id]);
-
     return child;
 }
 
@@ -133,26 +122,20 @@ unsigned int container_split(unsigned int id, unsigned int quota)
  */
 unsigned int container_alloc(unsigned int id)
 {
-    unsigned int page_index = 0;
-
-    spinlock_acquire(&container_lks[id]);
-
     if (CONTAINER[id].usage + 1 <= CONTAINER[id].quota)
     {
         CONTAINER[id].usage++;
-        page_index = palloc();
+        return palloc();
     }
-
-    spinlock_release(&container_lks[id]);
-
-    return page_index;
+    else
+    {
+        return 0;
+    }
 }
 
 // Frees the physical page and reduces the usage by 1.
 void container_free(unsigned int id, unsigned int page_index)
 {
-    spinlock_acquire(&container_lks[id]);
-
     if (at_is_allocated(page_index))
     {
         pfree(page_index);
@@ -161,6 +144,4 @@ void container_free(unsigned int id, unsigned int page_index)
             CONTAINER[id].usage--;
         }
     }
-
-    spinlock_release(&container_lks[id]);
 }

@@ -19,17 +19,29 @@
  * Since the value 0 is reserved for thread id 0, we use NUM_IDS
  * to represent the NULL index.
  */
-struct TCB {
+struct TCB
+{
     t_state state;
     unsigned int cpuid;
     unsigned int prev;
     unsigned int next;
+    unsigned int debugger_id;
     void *channel;
-    struct file *openfiles[NOFILE];  // Open files
-    struct inode *cwd;               // Current working directory
+    struct file *openfiles[NOFILE]; // Open files
+    struct inode *cwd;              // Current working directory
 } in_cache_line;
 
 struct TCB TCBPool[NUM_IDS];
+
+unsigned int tcb_get_debugger_id(unsigned int pid)
+{
+    return TCBPool[pid].debugger_id;
+}
+
+void tcb_set_debugger_id(unsigned int pid, unsigned int debugger_id)
+{
+    TCBPool[pid].debugger_id = debugger_id;
+}
 
 unsigned int tcb_get_state(unsigned int pid)
 {

@@ -12,3 +12,25 @@ List here the following info:
 2. whether you coded this assignment together, and if not, who worked on which part
 3. brief description of what you have implemented
 4. and anything else you would like us to know
+
+0. initialize debugger & debuggee
+    Spawn debugger process  <-- we can do this automatically
+    Spawn user process
+        - sys_debugger_spawn to initialize but not execute the user process
+        - tcb_set_debugger(int user_pid, int debugger_pid) register debugger PID in the user process TCB 
+
+1. Read a bunch of addresses to stop at in the debuggee process.
+    Invalidate memory addresses provided by debugger
+        - set address with no read permission
+        - add a special DEBUG flag (similar to the COW flag)
+
+2. Start the debuggee (for example with a start command).
+    return control back to the debugee process
+
+3. When a breakpoint is hit, control goes back to the debugger and the user can either type commands to dump the contents of the memory (dump 0x12345678) or resume the execution (continue).
+    In TTrapHandler.c, if we get a page fault/memory error, check for the presence of the DEBUG flag
+        - if DEBUG is present, find the "debugger" id of the current id, and give it control
+
+4. Back to 3. 
+
+
