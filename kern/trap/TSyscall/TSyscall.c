@@ -266,9 +266,40 @@ void sys_debug_spawn(tf_t *tf)
 void sys_debug_start(tf_t *tf)
 {
     // KERN_DEBUG("yielding in sys_debug_start\n");
-    unsigned int debugge_pid = syscall_get_arg2(tf);
-    thread_yield_to(debugge_pid);
+    unsigned int debuggee_pid = syscall_get_arg2(tf);
+    thread_yield_to(debuggee_pid);
     syscall_set_errno(tf, E_SUCC);
+}
+
+/**
+ * Invalidate address in the debuggee
+ */
+void sys_debug_invalidate(tf_t *tf)
+{
+
+    unsigned int succ;
+    // KERN_DEBUG("yielding in sys_debug_start\n");
+    unsigned int debuggee_pid = syscall_get_arg2(tf);
+    unsigned int debuggee_addr = syscall_get_arg3(tf);
+
+    if (debuggee_addr < VM_USERLO || debuggee_addr > VM_USERHI)
+    {
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+
+    //invalidate debuggee addr
+    KERN_DEBUG("calling invalidate_address in MPTOp\n");
+    succ = invalidate_address(debuggee_pid, debuggee_addr);
+    KERN_DEBUG("address invalidated\n");
+    if (succ == 1)
+    {
+        syscall_set_errno(tf, E_SUCC);
+    }
+    else
+    {
+        syscall_set_errno(tf, E_INVAL_ADDR);
+    }
 }
 
 /**
@@ -280,5 +311,6 @@ void sys_debug_start(tf_t *tf)
 void sys_yield(tf_t *tf)
 {
     thread_yield();
+    syscall_set_retval1(tf, 0);
     syscall_set_errno(tf, E_SUCC);
 }

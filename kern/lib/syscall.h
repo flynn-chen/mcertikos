@@ -37,6 +37,7 @@ enum __syscall_nr
     SYS_spawn, /* create a new process */
     SYS_debug_spawn,
     SYS_debug_start,
+    SYS_debug_invalidate,
     SYS_yield, /* yield to another process */
     SYS_open,
     SYS_close,

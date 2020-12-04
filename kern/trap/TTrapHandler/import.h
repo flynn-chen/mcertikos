@@ -9,7 +9,8 @@ unsigned int alloc_page(unsigned int proc_index, unsigned int vaddr,
 unsigned int syscall_get_arg1(void);
 void set_pdir_base(unsigned int index);
 void proc_start_user(void);
+unsigned int tcb_get_debugger_id(unsigned int pid);
 
-#endif  /* _KERN_ */
+#endif /* _KERN_ */
 
-#endif  /* !_KERN_TRAP_TTRAPHANDLER_H_ */
+#endif /* !_KERN_TRAP_TTRAPHANDLER_H_ */

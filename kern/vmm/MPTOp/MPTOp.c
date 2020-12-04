@@ -1,14 +1,17 @@
 #include <lib/x86.h>
+#include <lib/string.h>
+#include <lib/debug.h>
+#include <kern/thread/PCurID/export.h>
 
 #include "import.h"
 
 #define PDE_ADDR(x) (x >> 22)
 #define PTE_ADDR(x) ((x >> 12) & 0x3ff)
 
-#define PAGESIZE      4096
-#define PDIRSIZE      (PAGESIZE * 1024)
-#define VM_USERLO     0x40000000
-#define VM_USERHI     0xF0000000
+#define PAGESIZE 4096
+#define PDIRSIZE (PAGESIZE * 1024)
+#define VM_USERLO 0x40000000
+#define VM_USERHI 0xF0000000
 #define VM_USERLO_PDE (VM_USERLO / PDIRSIZE)
 #define VM_USERHI_PDE (VM_USERHI / PDIRSIZE)
 
@@ -20,9 +23,12 @@
 unsigned int get_ptbl_entry_by_va(unsigned int proc_index, unsigned int vaddr)
 {
     unsigned int pde_index = PDE_ADDR(vaddr);
-    if (get_pdir_entry(proc_index, pde_index) != 0) {
+    if (get_pdir_entry(proc_index, pde_index) != 0)
+    {
         return get_ptbl_entry(proc_index, pde_index, PTE_ADDR(vaddr));
-    } else {
+    }
+    else
+    {
         return 0;
     }
 }
@@ -37,7 +43,8 @@ unsigned int get_pdir_entry_by_va(unsigned int proc_index, unsigned int vaddr)
 void rmv_ptbl_entry_by_va(unsigned int proc_index, unsigned int vaddr)
 {
     unsigned int pde_index = PDE_ADDR(vaddr);
-    if (get_pdir_entry(proc_index, pde_index) != 0) {
+    if (get_pdir_entry(proc_index, pde_index) != 0)
+    {
         rmv_ptbl_entry(proc_index, pde_index, PTE_ADDR(vaddr));
     }
 }
@@ -72,17 +79,114 @@ void idptbl_init(unsigned int mbi_addr)
     container_init(mbi_addr);
 
     // Set up IDPTbl
-    for (pde_index = 0; pde_index < 1024; pde_index++) {
-        if ((pde_index < VM_USERLO_PDE) || (VM_USERHI_PDE <= pde_index)) {
+    for (pde_index = 0; pde_index < 1024; pde_index++)
+    {
+        if ((pde_index < VM_USERLO_PDE) || (VM_USERHI_PDE <= pde_index))
+        {
             // kernel mapping
             perm = PTE_P | PTE_W | PTE_G;
-        } else {
+        }
+        else
+        {
             // normal memory
             perm = PTE_P | PTE_W;
         }
 
-        for (pte_index = 0; pte_index < 1024; pte_index++) {
+        for (pte_index = 0; pte_index < 1024; pte_index++)
+        {
             set_ptbl_entry_identity(pde_index, pte_index, perm);
         }
+    }
+}
+
+/*
+    addr_arr = [0x4000, 0x135432]
+    byte_arr = [0xcd, 0xt5]
+
+    byte_arr[x] = the original first byte of addr_arr[x]
+
+    revalidate y: search addr_arr to find y (at index i) restore byte_arr[i]
+*/
+#define MAX_BREAKPOINT 100
+unsigned int addr_arr[NUM_IDS][MAX_BREAKPOINT];
+char byte_arr[NUM_IDS][MAX_BREAKPOINT];
+unsigned int breakpoint_number;
+/*
+    Invalidate the given virtual address by removing its present bit
+    and setting the special PTE_BRK bit.
+
+    Return 1 (true) if successfully invalidated.
+    Otherwise return 0 (false)
+*/
+unsigned int invalidate_address(unsigned int proc_index, unsigned int vaddr)
+{
+    unsigned int ptbl_entry = get_ptbl_entry_by_va(proc_index, vaddr);
+    unsigned int data_with_int, frame_addr, instruction_addr;
+    char original_instruction;
+    unsigned int offset = vaddr & 0xfff;
+    if (ptbl_entry & PTE_P)
+    {
+        // get the physical address that we want to insert the debug int instruction
+        frame_addr = ptbl_entry & 0xfffff000;
+        instruction_addr = frame_addr + offset;
+
+        // record the byte at that address
+        memcpy((void *)&original_instruction, (void *)instruction_addr, 1);
+        // original_instruction = *(char *)instruction_addr;
+        addr_arr[get_curid()][breakpoint_number] = vaddr;
+        byte_arr[get_curid()][breakpoint_number] = original_instruction;
+        breakpoint_number += 1;
+
+        // overwrite first byte with int 3
+        // add the int 3 opcode to the instruction
+        // data_with_int = (data & 0xffffff00) | 0xcc;
+        KERN_DEBUG("writing to 0x%08x (frame addr = 0x%08x, offset = 0x%08x)\n", instruction_addr, frame_addr, offset);
+        KERN_DEBUG("overwrote 0x%08x == %c == %d\n", original_instruction, original_instruction, original_instruction);
+        memset((void *)instruction_addr, 0xcc, 1);
+
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+/*
+    Re-validate the given virtual address by removing the PTE_BRK bit
+    and setting the present bit.
+
+    The given address MUST have previously been invalidated for this to work.
+
+    Return 1 (true) if successfully validated.
+    Otherwise return 0 (false)
+*/
+unsigned int validate_address(unsigned int proc_index, unsigned int vaddr)
+{
+    unsigned int ptbl_entry = get_ptbl_entry_by_va(proc_index, vaddr);
+    unsigned int perm = ptbl_entry & (0xfff);
+    unsigned int data_with_int, frame_addr, instruction_addr;
+    char original_instruction;
+    unsigned int offset = vaddr & 0xfff;
+    if (ptbl_entry & PTE_P)
+    {
+        for (unsigned int i = breakpoint_number - 1; i >= 0; i--)
+        {
+            if (addr_arr[get_curid()][i] == vaddr)
+            {
+                original_instruction = byte_arr[get_curid()][i];
+            }
+        }
+        // get the physical address that we want to insert the debug int instruction
+        frame_addr = ptbl_entry & 0xfffff000;
+        instruction_addr = frame_addr + offset;
+        // KERN_DEBUG("removing breakpoint at va: 0x%08x replacing byte %c pa: 0x%08x with original %c", vaddr, original_instruction);
+        memset((void *)instruction_addr, (int)original_instruction, 1);
+
+        return 1;
+    }
+    else
+    {
+        return 0;
     }
 }

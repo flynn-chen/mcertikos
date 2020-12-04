@@ -6,6 +6,7 @@
 pid_t spawn(unsigned int elf_id, unsigned int quota);
 pid_t debug_spawn(unsigned int elf_id, unsigned int quota);
 void debug_start(unsigned int pid);
+int debug_invalidate(unsigned int pid, unsigned int addr);
 void yield(void);
 
 #endif /* !_USER_PROC_H_ */

@@ -12,7 +12,9 @@ void set_ptbl_entry_by_va(unsigned int proc_index, unsigned int vaddr,
                           unsigned int page_index, unsigned int perm);
 void rmv_ptbl_entry_by_va(unsigned int proc_index, unsigned int vaddr);
 void idptbl_init(unsigned int mbi_addr);
+unsigned int invalidate_address(unsigned int proc_index, unsigned int vaddr);
+unsigned int validate_address(unsigned int proc_index, unsigned int vaddr);
 
-#endif  /* _KERN_ */
+#endif /* _KERN_ */
 
-#endif  /* !_KERN_VMM_MPTOP_H_ */
+#endif /* !_KERN_VMM_MPTOP_H_ */

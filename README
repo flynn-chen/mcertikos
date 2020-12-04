@@ -33,4 +33,36 @@ List here the following info:
 
 4. Back to 3. 
 
+5. Clean up the break points in that process
 
+
+What we're able to do:
+    - type in a memory address, and turn it into a breakpoint
+    - have user code stop execution at that breakpoint and transfer to debugger
+    - return control to user code and continue execution
+    - HOWEVER: this process removes the breakpoint
+        - we don't 
+
+
+our approach to writing interrupts in the user code:
+    - given a vaddr, find its physical address
+        - do this by calling get_ptbl_entry_by_va, finding the upper 20 bits
+          (physical frame address), and adding the offset from the vaddr
+    - call memset to write 0xcc to the first byte of the physical addresses
+
+for ex:
+    - given 0x40000ef8
+        - we translated that into physical address 0x4000fef8
+        - called memset((void*) 0x4000fef8, 0xcc, 1)
+
+however, even though 0x40000ef8 is in the user code that should be executed,
+we don't see the breakpoint interrupt ever get raised
+
+but: when we set breakpoints elsewhere in the code (like in the printf function),
+we do see them raised. this makes us think that calling memset is fine (it
+successfully writes "int 3" into the code), but we're just doing it at the wrong address.
+
+for ex:
+    - given 0x40000260 (the user memory address of the kernel printf function)
+    - doing our above process causes a breakpoint interrupt to be raised with 
+      the fault_va 0xeffffffc

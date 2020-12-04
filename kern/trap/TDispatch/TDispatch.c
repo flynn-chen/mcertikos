@@ -59,6 +59,10 @@ void syscall_dispatch(tf_t *tf)
         // KERN_DEBUG("Dispatched to SYS_debug_start\n");
         sys_debug_start(tf);
         break;
+    case SYS_debug_invalidate:
+        KERN_DEBUG("Dispatched to SYS_debug_invalidate\n");
+        sys_debug_invalidate(tf);
+        break;
     case SYS_yield:
         /*
          * Called by a process to abandon its CPU slice.

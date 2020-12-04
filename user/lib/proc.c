@@ -17,6 +17,11 @@ void debug_start(unsigned int pid)
     return sys_debug_start(pid);
 }
 
+int debug_invalidate(unsigned int pid, unsigned int addr)
+{
+    return sys_debug_invalidate(pid, addr);
+}
+
 void yield(void)
 {
     sys_yield();

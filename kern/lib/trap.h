@@ -3,12 +3,13 @@
 
 #ifdef _KERN_
 
-#define PFE_PR        0x1         /* Page fault caused by protection violation */
-#define CPU_GDT_UCODE 0x18        /* user text */
-#define CPU_GDT_UDATA 0x20        /* user data */
-#define VM_USERHI     0xf0000000
-#define VM_USERLO     0x40000000
-#define FL_IF         0x00000200  /* Interrupt Flag */
+#define PFE_PR 0x1         /* Page fault caused by protection violation */
+#define CPU_GDT_UCODE 0x18 /* user text */
+#define CPU_GDT_UDATA 0x20 /* user data */
+#define VM_USERHI 0xf0000000
+#define VM_USERLO 0x40000000
+#define FL_TF 0x00000100 /* Trap Flag */
+#define FL_IF 0x00000200 /* Interrupt Flag */
 
 #ifndef __ASSEMBLER__
 
@@ -16,18 +17,20 @@
 #include <lib/types.h>
 #include <lib/gcc.h>
 
-typedef struct pushregs {
+typedef struct pushregs
+{
     uint32_t edi;
     uint32_t esi;
     uint32_t ebp;
-    uint32_t oesp;  /* Useless */
+    uint32_t oesp; /* Useless */
     uint32_t ebx;
     uint32_t edx;
     uint32_t ecx;
     uint32_t eax;
 } pushregs;
 
-typedef struct tf_t {
+typedef struct tf_t
+{
     /* registers and other info we push manually in kern/dev/idt.S */
     pushregs regs;
     uint16_t es;
@@ -57,8 +60,8 @@ extern trap_cb_t TRAP_HANDLER[NUM_CPUS][256];
 
 void trap_init(unsigned int cpu_idx);
 
-#endif  /* !__ASSEMBLER__ */
+#endif /* !__ASSEMBLER__ */
 
-#endif  /* _KERN_ */
+#endif /* _KERN_ */
 
-#endif  /* !_KERN_LIB_TRAP_H_ */
+#endif /* !_KERN_LIB_TRAP_H_ */

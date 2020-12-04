@@ -6,7 +6,7 @@
 #include <lib/x86.h>
 #include <dev/intr.h>
 #include <pcpu/PCPUIntro/export.h>
-
+#include <kern/proc/PProc/export.h>
 #include <vmm/MPTOp/export.h>
 #include <thread/PThread/export.h>
 
@@ -19,7 +19,7 @@ static void trap_dump(tf_t *tf)
     if (tf == NULL)
         return;
 
-    uintptr_t base = (uintptr_t) tf;
+    uintptr_t base = (uintptr_t)tf;
 
     KERN_DEBUG("trapframe at %x\n", base);
     KERN_DEBUG("\t%08x:\tedi:   \t\t%08x\n", &tf->regs.edi, tf->regs.edi);
@@ -62,22 +62,100 @@ void pgflt_handler(tf_t *tf)
     fault_va = rcr2();
 
     // Uncomment this line to see information about the page fault
-    // KERN_DEBUG("Page fault: VA 0x%08x, errno 0x%08x, process %d, EIP 0x%08x.\n",
-    //            fault_va, errno, cur_pid, uctx_pool[cur_pid].eip);
+    // KERN_DEBUG("Page fault: VA 0x%08x, errno 0x%08x, process %d.\n",
+    //            fault_va, errno, cur_pid);
 
-    if (errno & PFE_PR) {
+    // breakpoint handling
+    // if ((errno & 0x4) == 0x4)
+    // {
+    //     // error for writing to a read-only page
+    //     unsigned int pte_entry = get_ptbl_entry_by_va(cur_pid, fault_va);
+    //     if (pte_entry & PTE_BRK)
+    //     {
+    //         // handling copy-on-write
+    //         KERN_DEBUG("WE FOUND A BREAKPOINT!!!!!!\n");
+    //         // suspend the running process
+    //         // start up the debugger
+    //         unsigned int debugger_pid = tcb_get_debugger_id(cur_pid);
+    //         thread_yield_to(debugger_pid);
+    //         KERN_DEBUG("returned from debugger, revalidating the address 0x%08x\n", fault_va);
+    //         validate_address(cur_pid, fault_va);
+    //         return;
+    //         // Before debugger restarts the debuggee, we have to validate this address
+    //     }
+    // }
+
+    if (errno & PFE_PR)
+    {
         trap_dump(tf);
         KERN_PANIC("Permission denied: va = 0x%08x, errno = 0x%08x.\n",
                    fault_va, errno);
         return;
     }
 
-    if (alloc_page(cur_pid, fault_va, PTE_W | PTE_U | PTE_P) == MagicNumber) {
+    if (alloc_page(cur_pid, fault_va, PTE_W | PTE_U | PTE_P) == MagicNumber)
+    {
         KERN_PANIC("Page allocation failed: va = 0x%08x, errno = 0x%08x.\n",
                    fault_va, errno);
     }
 }
 
+unsigned int last_vaddr[NUM_IDS];
+
+void breakpoint_handler(tf_t *tf)
+{
+    if (tf->trapno != T_BRKPT)
+    {
+        return;
+    }
+
+    unsigned int cur_pid;
+    unsigned int errno;
+    unsigned int fault_va;
+
+    cur_pid = get_curid();
+    errno = tf->err;
+    fault_va = rcr2();
+    KERN_DEBUG("Handling breakpoint at addr 0x%08x\n", fault_va);
+
+    // error for writing to a read-only page
+    unsigned int pte_entry = get_ptbl_entry_by_va(cur_pid, fault_va);
+    if (pte_entry & PTE_BRK)
+    {
+        // suspend the running process
+        // start up the debugger
+        unsigned int debugger_pid = tcb_get_debugger_id(cur_pid);
+        thread_yield_to(debugger_pid);
+        KERN_DEBUG("returned from debugger, revalidating the address 0x%08x\n", fault_va);
+        // Before we return to the debuggee, we have to validate this address
+        validate_address(cur_pid, fault_va);
+
+        // set the trap flag on eflags register (should enable single step)
+        proc_enable_single_step(cur_pid);
+        last_vaddr[cur_pid] = fault_va;
+
+        /*
+            currently arr CURR instruction
+            1. write a breakpoint at NEXT instruction
+            2. when we break at NEXT instr, restore the CURR instr's breakpoint
+            3. erase NEXT breakpoint and continue
+
+            1. single step (^)
+            2. restore old breakpoint
+        */
+        return;
+    }
+}
+
+void single_step_handler(tf_t *tf)
+{
+    unsigned int cur_pid = get_curid();
+    KERN_DEBUG("got a single step interrupt, invalidating 0x%08x\n", last_vaddr[cur_pid]);
+    // restore the breakpoint that got erased when it was handled
+    invalidate_address(cur_pid, last_vaddr[cur_pid]);
+    proc_disable_single_step(cur_pid);
+    return;
+}
 /**
  * We currently only handle the page fault exception.
  * All other exceptions should be routed to the default exception handler.
@@ -86,6 +164,10 @@ void exception_handler(tf_t *tf)
 {
     if (tf->trapno == T_PGFLT)
         pgflt_handler(tf);
+    else if (tf->trapno == T_DEBUG)
+        single_step_handler(tf);
+    else if (tf->trapno == T_BRKPT)
+        breakpoint_handler(tf);
     else
         default_exception_handler(tf);
 }
@@ -114,7 +196,8 @@ static int default_intr_handler(void)
  */
 void interrupt_handler(tf_t *tf)
 {
-    switch (tf->trapno) {
+    switch (tf->trapno)
+    {
     case T_IRQ0 + IRQ_SPURIOUS:
     case T_IRQ0 + IRQ_IDE2:
         spurious_intr_handler();
@@ -144,15 +227,18 @@ void trap(tf_t *tf)
 
     if (last_pid != 0)
     {
-        set_pdir_base(0);  // switch to the kernel's page table
+        set_pdir_base(0); // switch to the kernel's page table
         last_active[cpu_idx] = 0;
     }
 
     handler = TRAP_HANDLER[get_pcpu_idx()][tf->trapno];
 
-    if (handler) {
+    if (handler)
+    {
         handler(tf);
-    } else {
+    }
+    else
+    {
         KERN_WARN("No handler for user trap 0x%x, process %d, eip 0x%08x.\n",
                   tf->trapno, cur_pid, tf->eip);
     }
@@ -163,6 +249,5 @@ void trap(tf_t *tf)
         set_pdir_base(cur_pid);
         last_active[cpu_idx] = last_pid;
     }
-
-    trap_return((void *) tf);
+    trap_return((void *)tf);
 }

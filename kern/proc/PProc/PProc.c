@@ -5,6 +5,7 @@
 #include <lib/trap.h>
 #include <lib/x86.h>
 #include <pcpu/PCPUIntro/export.h>
+#include <vmm/MPTOp/export.h>
 
 #include "import.h"
 
@@ -32,6 +33,16 @@ void proc_start_user(void)
     last_active[cpu_idx] = cur_pid;
 
     trap_return((void *)&uctx_pool[cur_pid]);
+}
+
+void proc_enable_single_step(unsigned int pid)
+{
+    uctx_pool[pid].eflags |= FL_TF;
+}
+
+void proc_disable_single_step(unsigned int pid)
+{
+    uctx_pool[pid].eflags &= ~FL_TF;
 }
 
 unsigned int proc_create(void *elf_addr, unsigned int quota)

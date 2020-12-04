@@ -19,7 +19,9 @@ void rmv_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int pte_index);
 void set_ptbl_entry_identity(unsigned int pde_index, unsigned int pte_index,
                              unsigned int perm);
+unsigned int map_page(unsigned int proc_index, unsigned int vaddr,
+                      unsigned int page_index, unsigned int perm);
 
-#endif  /* _KERN_ */
+#endif /* _KERN_ */
 
-#endif  /* !_KERN_VMM_MPTOP_H_ */
+#endif /* !_KERN_VMM_MPTOP_H_ */
