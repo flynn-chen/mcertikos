@@ -20,8 +20,8 @@ int main(int argc, char *argv[])
 
     // prompt for input
     // 0x40000260 -> printf should get a breakpoint fault because the contents are copied to kernel memory
-    // 0x40000ef8 -> call printf from do_stuff
-    // 0x40000f10 -> call printf on hello
+    // 0x40000f18 -> call printf from do_stuff
+    // 0x40000f10 -> address of do_stuff
     // 0x40000000
     // 0x4000000e
     printf("Enter: \n\t1. hex or integer to set breakpoint addresses \n\t2. 'start' or press enter to start debugee\n");
@@ -72,11 +72,15 @@ int main(int argc, char *argv[])
 
     */
 
-    // printf("starting debuggee\n");
+    printf("starting debuggee\n");
     debug_start(user_pid);
-    // trap handler just called thread_yield_to after finding a PTE_BRK
-    printf("debugger started back up\n");
-    debug_start(user_pid);
+    while (1)
+    {
+        // trap handler just called thread_yield_to after finding a PTE_BRK
+        printf("debugger started back up\n");
+        readline(line, LINE_BUF);
+        debug_start(user_pid);
+    }
     // printf("woken up\n");
 
     // debug_end(user_pid);

@@ -121,9 +121,10 @@ unsigned int breakpoint_number;
 unsigned int invalidate_address(unsigned int proc_index, unsigned int vaddr)
 {
     unsigned int ptbl_entry = get_ptbl_entry_by_va(proc_index, vaddr);
-    unsigned int data_with_int, frame_addr, instruction_addr;
+    unsigned int frame_addr, instruction_addr;
     char original_instruction;
     unsigned int offset = vaddr & 0xfff;
+    char debug[16];
     if (ptbl_entry & PTE_P)
     {
         // get the physical address that we want to insert the debug int instruction
@@ -132,6 +133,12 @@ unsigned int invalidate_address(unsigned int proc_index, unsigned int vaddr)
 
         // record the byte at that address
         memcpy((void *)&original_instruction, (void *)instruction_addr, 1);
+        memcpy((void *)debug, (void *)instruction_addr, 16);
+        KERN_DEBUG("before invalidation: \n");
+        for (unsigned int i = 0; i < 16; i++)
+        {
+            KERN_DEBUG("\t%d\n", debug[i]);
+        }
         // original_instruction = *(char *)instruction_addr;
         addr_arr[get_curid()][breakpoint_number] = vaddr;
         byte_arr[get_curid()][breakpoint_number] = original_instruction;
@@ -143,6 +150,13 @@ unsigned int invalidate_address(unsigned int proc_index, unsigned int vaddr)
         KERN_DEBUG("writing to 0x%08x (frame addr = 0x%08x, offset = 0x%08x)\n", instruction_addr, frame_addr, offset);
         KERN_DEBUG("overwrote 0x%08x == %c == %d\n", original_instruction, original_instruction, original_instruction);
         memset((void *)instruction_addr, 0xcc, 1);
+
+        memcpy((void *)debug, (void *)instruction_addr, 16);
+        KERN_DEBUG("after invalidation: \n");
+        for (unsigned int i = 0; i < 16; i++)
+        {
+            KERN_DEBUG("\t%d\n", debug[i]);
+        }
 
         return 1;
     }
@@ -166,27 +180,45 @@ unsigned int validate_address(unsigned int proc_index, unsigned int vaddr)
     unsigned int ptbl_entry = get_ptbl_entry_by_va(proc_index, vaddr);
     unsigned int perm = ptbl_entry & (0xfff);
     unsigned int data_with_int, frame_addr, instruction_addr;
-    char original_instruction;
+    char original_instruction = '\0';
     unsigned int offset = vaddr & 0xfff;
-    if (ptbl_entry & PTE_P)
-    {
-        for (unsigned int i = breakpoint_number - 1; i >= 0; i--)
-        {
-            if (addr_arr[get_curid()][i] == vaddr)
-            {
-                original_instruction = byte_arr[get_curid()][i];
-            }
-        }
-        // get the physical address that we want to insert the debug int instruction
-        frame_addr = ptbl_entry & 0xfffff000;
-        instruction_addr = frame_addr + offset;
-        // KERN_DEBUG("removing breakpoint at va: 0x%08x replacing byte %c pa: 0x%08x with original %c", vaddr, original_instruction);
-        memset((void *)instruction_addr, (int)original_instruction, 1);
 
-        return 1;
-    }
-    else
+    for (unsigned int i = breakpoint_number - 1; i >= 0; i--)
     {
-        return 0;
+        if (addr_arr[get_curid()][i] == vaddr)
+        {
+            KERN_DEBUG("original breakpoint found\n");
+            original_instruction = byte_arr[get_curid()][i];
+            break;
+        }
     }
+    if (original_instruction == '\0')
+    {
+        KERN_PANIC("couldn't find original instruction for address 0x%08x\n", vaddr);
+    }
+    // get the physical address that we want to insert the debug int instruction
+    frame_addr = ptbl_entry & 0xfffff000;
+    instruction_addr = frame_addr + offset;
+    KERN_DEBUG("removing breakpoint at va: 0x%08x (pa: 0x%08x) by rewriting byte %d\n", vaddr, instruction_addr, original_instruction);
+
+    char debug[16];
+
+    memcpy((void *)debug, (void *)instruction_addr, 16);
+
+    KERN_DEBUG("before re-validation: \n");
+    for (unsigned int i = 0; i < 16; i++)
+    {
+        KERN_DEBUG("\t%d\n", debug[i]);
+    }
+
+    memset((void *)instruction_addr, (int)original_instruction, 1);
+
+    memcpy((void *)debug, (void *)instruction_addr, 16);
+    KERN_DEBUG("after re-validation: \n");
+    for (unsigned int i = 0; i < 16; i++)
+    {
+        KERN_DEBUG("\t%d\n", debug[i]);
+    }
+
+    return 1;
 }

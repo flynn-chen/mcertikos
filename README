@@ -64,5 +64,14 @@ successfully writes "int 3" into the code), but we're just doing it at the wrong
 
 for ex:
     - given 0x40000260 (the user memory address of the kernel printf function)
+        - 0x4000f260
     - doing our above process causes a breakpoint interrupt to be raised with 
       the fault_va 0xeffffffc
+
+tf->eip increments by 1 automatically when we trap?
+
+
+
+Problems
+1. breakpoints are being raised (asked on piazza)
+2. the breakpoint that IS raised, we can't continue from properly

@@ -116,35 +116,39 @@ void breakpoint_handler(tf_t *tf)
     cur_pid = get_curid();
     errno = tf->err;
     fault_va = rcr2();
-    KERN_DEBUG("Handling breakpoint at addr 0x%08x\n", fault_va);
+    unsigned int intr_addr = tf->eip - 1;
+    KERN_DEBUG("Handling breakpoint at addr 0x%08x\n", intr_addr);
 
     // error for writing to a read-only page
-    unsigned int pte_entry = get_ptbl_entry_by_va(cur_pid, fault_va);
-    if (pte_entry & PTE_BRK)
-    {
-        // suspend the running process
-        // start up the debugger
-        unsigned int debugger_pid = tcb_get_debugger_id(cur_pid);
-        thread_yield_to(debugger_pid);
-        KERN_DEBUG("returned from debugger, revalidating the address 0x%08x\n", fault_va);
-        // Before we return to the debuggee, we have to validate this address
-        validate_address(cur_pid, fault_va);
+    // KERN_DEBUG("getting breakpoint intr addr\n");
+    unsigned int pte_entry = get_ptbl_entry_by_va(cur_pid, intr_addr);
+    // KERN_DEBUG("got breakpoint intr addr\n");
 
-        // set the trap flag on eflags register (should enable single step)
-        proc_enable_single_step(cur_pid);
-        last_vaddr[cur_pid] = fault_va;
+    // suspend the running process
+    // start up the debugger
+    // KERN_DEBUG("getting debugger id\n");
+    unsigned int debugger_pid = tcb_get_debugger_id(cur_pid);
+    // KERN_DEBUG("got debugger id\n");
+    thread_yield_to(debugger_pid);
+    KERN_DEBUG("returned from debugger, revalidating the address 0x%08x\n", intr_addr);
+    // Before we return to the debuggee, we have to validate this address
+    validate_address(cur_pid, intr_addr);
+    KERN_DEBUG("finished validating\n");
+    // set the trap flag on eflags register (should enable single step)
+    // proc_enable_single_step(cur_pid);
+    KERN_DEBUG("enabled single step in pid: %d 0x%08x\n", cur_pid, intr_addr);
+    last_vaddr[cur_pid] = intr_addr;
 
-        /*
-            currently arr CURR instruction
-            1. write a breakpoint at NEXT instruction
-            2. when we break at NEXT instr, restore the CURR instr's breakpoint
-            3. erase NEXT breakpoint and continue
+    /*
+        currently arr CURR instruction
+        1. write a breakpoint at NEXT instruction
+        2. when we break at NEXT instr, restore the CURR instr's breakpoint
+        3. erase NEXT breakpoint and continue
 
-            1. single step (^)
-            2. restore old breakpoint
-        */
-        return;
-    }
+        1. single step (^)
+        2. restore old breakpoint
+    */
+    return;
 }
 
 void single_step_handler(tf_t *tf)
