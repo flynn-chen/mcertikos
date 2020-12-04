@@ -35,16 +35,6 @@ void proc_start_user(void)
     trap_return((void *)&uctx_pool[cur_pid]);
 }
 
-void proc_enable_single_step(unsigned int pid)
-{
-    uctx_pool[pid].eflags |= FL_TF;
-}
-
-void proc_disable_single_step(unsigned int pid)
-{
-    uctx_pool[pid].eflags &= ~FL_TF;
-}
-
 unsigned int proc_create(void *elf_addr, unsigned int quota)
 {
     unsigned int pid, id;
@@ -88,7 +78,7 @@ unsigned int proc_debug_create(void *elf_addr, unsigned int quota)
         uctx_pool[pid].cs = CPU_GDT_UCODE | 3;
         uctx_pool[pid].ss = CPU_GDT_UDATA | 3;
         uctx_pool[pid].esp = VM_USERHI;
-        uctx_pool[pid].eflags = FL_IF;
+        uctx_pool[pid].eflags = FL_IF | FL_TF;
         uctx_pool[pid].eip = elf_entry(elf_addr);
 
         seg_init_proc(get_pcpu_idx(), pid);

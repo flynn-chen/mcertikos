@@ -24,7 +24,7 @@ unsigned int proc_create(void *elf_addr, unsigned int quota);
 unsigned int proc_debug_create(void *elf_addr, unsigned int quota);
 void thread_yield(void);
 void thread_yield_to(unsigned int pid);
-unsigned int invalidate_address(unsigned int pid, unsigned int vaddr);
+unsigned int add_breakpoint(unsigned int pid, unsigned int vaddr);
 
 #endif /* _KERN_ */
 

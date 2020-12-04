@@ -79,7 +79,7 @@ void pgflt_handler(tf_t *tf)
     //         unsigned int debugger_pid = tcb_get_debugger_id(cur_pid);
     //         thread_yield_to(debugger_pid);
     //         KERN_DEBUG("returned from debugger, revalidating the address 0x%08x\n", fault_va);
-    //         validate_address(cur_pid, fault_va);
+    //         remove_breakpoint(cur_pid, fault_va);
     //         return;
     //         // Before debugger restarts the debuggee, we have to validate this address
     //     }
@@ -111,53 +111,33 @@ void breakpoint_handler(tf_t *tf)
 
     unsigned int cur_pid;
     unsigned int errno;
-    unsigned int fault_va;
 
     cur_pid = get_curid();
     errno = tf->err;
-    fault_va = rcr2();
     unsigned int intr_addr = tf->eip - 1;
-    KERN_DEBUG("Handling breakpoint at addr 0x%08x\n", intr_addr);
-
-    // error for writing to a read-only page
-    // KERN_DEBUG("getting breakpoint intr addr\n");
-    unsigned int pte_entry = get_ptbl_entry_by_va(cur_pid, intr_addr);
-    // KERN_DEBUG("got breakpoint intr addr\n");
-
-    // suspend the running process
-    // start up the debugger
-    // KERN_DEBUG("getting debugger id\n");
+    KERN_DEBUG("Handling breakpoint 0x%08x\n", intr_addr);
+    // yield to the debugger
     unsigned int debugger_pid = tcb_get_debugger_id(cur_pid);
-    // KERN_DEBUG("got debugger id\n");
     thread_yield_to(debugger_pid);
-    KERN_DEBUG("returned from debugger, revalidating the address 0x%08x\n", intr_addr);
-    // Before we return to the debuggee, we have to validate this address
-    validate_address(cur_pid, intr_addr);
-    KERN_DEBUG("finished validating\n");
-    // set the trap flag on eflags register (should enable single step)
-    // proc_enable_single_step(cur_pid);
-    KERN_DEBUG("enabled single step in pid: %d 0x%08x\n", cur_pid, intr_addr);
+    // before we return to the debuggee, we have to remove the breakpoint
+    remove_breakpoint(cur_pid, intr_addr);
+    // reset instruction pointer so the breakpoint executes
+    tf->eip -= 1;
     last_vaddr[cur_pid] = intr_addr;
-
-    /*
-        currently arr CURR instruction
-        1. write a breakpoint at NEXT instruction
-        2. when we break at NEXT instr, restore the CURR instr's breakpoint
-        3. erase NEXT breakpoint and continue
-
-        1. single step (^)
-        2. restore old breakpoint
-    */
     return;
 }
 
 void single_step_handler(tf_t *tf)
 {
     unsigned int cur_pid = get_curid();
-    KERN_DEBUG("got a single step interrupt, invalidating 0x%08x\n", last_vaddr[cur_pid]);
+    unsigned int vaddr = last_vaddr[cur_pid];
+    if(vaddr == 0){
+        return;
+    }
+    // KERN_DEBUG("got a single step interrupt, adding breakpoint to 0x%08x\n", vaddr);
     // restore the breakpoint that got erased when it was handled
-    invalidate_address(cur_pid, last_vaddr[cur_pid]);
-    proc_disable_single_step(cur_pid);
+    add_breakpoint(cur_pid, vaddr);
+    last_vaddr[cur_pid] = 0;
     return;
 }
 /**

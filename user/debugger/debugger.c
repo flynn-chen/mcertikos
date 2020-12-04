@@ -35,20 +35,20 @@ int main(int argc, char *argv[])
         if (strlen(line) != 0 && line[0] == '0' && line[1] == 'x')
         {
             address = strtol(&line[2], &ptr, 16);
-            ret = debug_invalidate(user_pid, address);
+            ret = add_breakpoint(user_pid, address);
             if (ret == 0)
             {
-                printf("invalidated 0x%08x successfully\n", address);
+                printf("added breakpoint at 0x%08x\n", address);
             }
             else
             {
-                printf("failed to invalidate 0x%08xs\n", address);
+                printf("failed to add breakpoint at 0x%08xs\n", address);
             }
         }
         else if (strlen(line) != 0)
         {
             address = strtol(line, &ptr, 10);
-            ret = debug_invalidate(user_pid, address);
+            ret = add_breakpoint(user_pid, address);
             if (ret == 0)
             {
                 printf("invalidated 0x%08x successfully\n", address);
@@ -72,12 +72,12 @@ int main(int argc, char *argv[])
 
     */
 
-    printf("starting debuggee\n");
+    // printf("starting debuggee\n");
     debug_start(user_pid);
     while (1)
     {
         // trap handler just called thread_yield_to after finding a PTE_BRK
-        printf("debugger started back up\n");
+        // printf("debugger started back up\n");
         readline(line, LINE_BUF);
         debug_start(user_pid);
     }

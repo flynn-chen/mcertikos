@@ -274,7 +274,7 @@ void sys_debug_start(tf_t *tf)
 /**
  * Invalidate address in the debuggee
  */
-void sys_debug_invalidate(tf_t *tf)
+void sys_add_breakpoint(tf_t *tf)
 {
 
     unsigned int succ;
@@ -289,9 +289,7 @@ void sys_debug_invalidate(tf_t *tf)
     }
 
     //invalidate debuggee addr
-    KERN_DEBUG("calling invalidate_address in MPTOp\n");
-    succ = invalidate_address(debuggee_pid, debuggee_addr);
-    KERN_DEBUG("address invalidated\n");
+    succ = add_breakpoint(debuggee_pid, debuggee_addr);
     if (succ == 1)
     {
         syscall_set_errno(tf, E_SUCC);

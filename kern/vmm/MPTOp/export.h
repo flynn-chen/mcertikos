@@ -12,8 +12,8 @@ void set_ptbl_entry_by_va(unsigned int proc_index, unsigned int vaddr,
                           unsigned int page_index, unsigned int perm);
 void rmv_ptbl_entry_by_va(unsigned int proc_index, unsigned int vaddr);
 void idptbl_init(unsigned int mbi_addr);
-unsigned int invalidate_address(unsigned int proc_index, unsigned int vaddr);
-unsigned int validate_address(unsigned int proc_index, unsigned int vaddr);
+unsigned int add_breakpoint(unsigned int proc_index, unsigned int vaddr);
+unsigned int remove_breakpoint(unsigned int proc_index, unsigned int vaddr);
 
 #endif /* _KERN_ */
 

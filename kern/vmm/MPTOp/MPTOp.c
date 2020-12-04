@@ -2,6 +2,7 @@
 #include <lib/string.h>
 #include <lib/debug.h>
 #include <kern/thread/PCurID/export.h>
+#include <kern/lib/pmap.h>
 
 #include "import.h"
 
@@ -112,113 +113,57 @@ unsigned int addr_arr[NUM_IDS][MAX_BREAKPOINT];
 char byte_arr[NUM_IDS][MAX_BREAKPOINT];
 unsigned int breakpoint_number;
 /*
-    Invalidate the given virtual address by removing its present bit
-    and setting the special PTE_BRK bit.
+    add a breakpoint to the given virtual address
 
-    Return 1 (true) if successfully invalidated.
+    Return 1 (true) if successfully added
     Otherwise return 0 (false)
 */
-unsigned int invalidate_address(unsigned int proc_index, unsigned int vaddr)
+unsigned int add_breakpoint(unsigned int proc_index, unsigned int vaddr)
 {
-    unsigned int ptbl_entry = get_ptbl_entry_by_va(proc_index, vaddr);
-    unsigned int frame_addr, instruction_addr;
-    char original_instruction;
-    unsigned int offset = vaddr & 0xfff;
-    char debug[16];
-    if (ptbl_entry & PTE_P)
-    {
-        // get the physical address that we want to insert the debug int instruction
-        frame_addr = ptbl_entry & 0xfffff000;
-        instruction_addr = frame_addr + offset;
+    char old_byte;
+    // copy in the old byte
+    pt_copyin(proc_index, vaddr, (void *)&old_byte, 1);
+    // overwrite it with int 3 op code
+    pt_memset(proc_index, vaddr, (char) 0xcc, 1);
 
-        // record the byte at that address
-        memcpy((void *)&original_instruction, (void *)instruction_addr, 1);
-        memcpy((void *)debug, (void *)instruction_addr, 16);
-        KERN_DEBUG("before invalidation: \n");
-        for (unsigned int i = 0; i < 16; i++)
-        {
-            KERN_DEBUG("\t%d\n", debug[i]);
-        }
-        // original_instruction = *(char *)instruction_addr;
-        addr_arr[get_curid()][breakpoint_number] = vaddr;
-        byte_arr[get_curid()][breakpoint_number] = original_instruction;
-        breakpoint_number += 1;
-
-        // overwrite first byte with int 3
-        // add the int 3 opcode to the instruction
-        // data_with_int = (data & 0xffffff00) | 0xcc;
-        KERN_DEBUG("writing to 0x%08x (frame addr = 0x%08x, offset = 0x%08x)\n", instruction_addr, frame_addr, offset);
-        KERN_DEBUG("overwrote 0x%08x == %c == %d\n", original_instruction, original_instruction, original_instruction);
-        memset((void *)instruction_addr, 0xcc, 1);
-
-        memcpy((void *)debug, (void *)instruction_addr, 16);
-        KERN_DEBUG("after invalidation: \n");
-        for (unsigned int i = 0; i < 16; i++)
-        {
-            KERN_DEBUG("\t%d\n", debug[i]);
-        }
-
-        return 1;
-    }
-    else
-    {
-        return 0;
-    }
+    // save the old_byte to the vaddr
+    addr_arr[get_curid()][breakpoint_number] = vaddr;
+    byte_arr[get_curid()][breakpoint_number] = old_byte;
+    breakpoint_number += 1;
+    // KERN_DEBUG("added breakpoint to 0x%08x. replaced %d\n", vaddr, old_byte);
+    return 1;
 }
 
 /*
-    Re-validate the given virtual address by removing the PTE_BRK bit
-    and setting the present bit.
+    remove breakpoint from the given virtual address
 
-    The given address MUST have previously been invalidated for this to work.
+    the given address MUST have previously had a breakpoint added for it to work
 
-    Return 1 (true) if successfully validated.
+    Return 1 (true) if successfully removed
     Otherwise return 0 (false)
 */
-unsigned int validate_address(unsigned int proc_index, unsigned int vaddr)
+unsigned int remove_breakpoint(unsigned int proc_index, unsigned int vaddr)
 {
-    unsigned int ptbl_entry = get_ptbl_entry_by_va(proc_index, vaddr);
-    unsigned int perm = ptbl_entry & (0xfff);
-    unsigned int data_with_int, frame_addr, instruction_addr;
-    char original_instruction = '\0';
-    unsigned int offset = vaddr & 0xfff;
-
+    char original_instruction;
+    unsigned int found = 0;
     for (unsigned int i = breakpoint_number - 1; i >= 0; i--)
     {
         if (addr_arr[get_curid()][i] == vaddr)
         {
-            KERN_DEBUG("original breakpoint found\n");
+            found = 1;
             original_instruction = byte_arr[get_curid()][i];
             break;
         }
     }
-    if (original_instruction == '\0')
+
+    if (found == 0)
     {
         KERN_PANIC("couldn't find original instruction for address 0x%08x\n", vaddr);
     }
-    // get the physical address that we want to insert the debug int instruction
-    frame_addr = ptbl_entry & 0xfffff000;
-    instruction_addr = frame_addr + offset;
-    KERN_DEBUG("removing breakpoint at va: 0x%08x (pa: 0x%08x) by rewriting byte %d\n", vaddr, instruction_addr, original_instruction);
 
-    char debug[16];
-
-    memcpy((void *)debug, (void *)instruction_addr, 16);
-
-    KERN_DEBUG("before re-validation: \n");
-    for (unsigned int i = 0; i < 16; i++)
-    {
-        KERN_DEBUG("\t%d\n", debug[i]);
-    }
-
-    memset((void *)instruction_addr, (int)original_instruction, 1);
-
-    memcpy((void *)debug, (void *)instruction_addr, 16);
-    KERN_DEBUG("after re-validation: \n");
-    for (unsigned int i = 0; i < 16; i++)
-    {
-        KERN_DEBUG("\t%d\n", debug[i]);
-    }
+    // rewrite the original instruction
+    pt_memset(proc_index, vaddr, original_instruction, 1);
+    // KERN_DEBUG("removed breakpoint at 0x%08x by rewriting byte %d\n", vaddr, original_instruction);
 
     return 1;
 }

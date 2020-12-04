@@ -74,13 +74,13 @@ static gcc_inline void sys_debug_start(unsigned int pid)
                : "cc", "memory");
 }
 
-static gcc_inline int sys_debug_invalidate(unsigned int pid, unsigned int addr)
+static gcc_inline int sys_add_breakpoint(unsigned int pid, unsigned int addr)
 {
   int errno, ret;
   asm volatile("int %2"
                : "=a"(errno), "=b"(ret)
                : "i"(T_SYSCALL),
-                 "a"(SYS_debug_invalidate),
+                 "a"(SYS_add_breakpoint),
                  "b"(pid),
                  "c"(addr)
                : "cc", "memory");
