@@ -152,6 +152,8 @@ void exception_handler(tf_t *tf)
         single_step_handler(tf);
     else if (tf->trapno == T_BRKPT)
         breakpoint_handler(tf);
+    else if (tf->trapno == T_RES)
+        KERN_PANIC("oh hey something ended\n");
     else
         default_exception_handler(tf);
 }

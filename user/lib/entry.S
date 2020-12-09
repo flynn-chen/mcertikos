@@ -19,5 +19,6 @@ args_exist:
 
 	/* When returning, push the return value on the stack. */
 	pushl	%eax
+
 spin:
 	jmp	spin

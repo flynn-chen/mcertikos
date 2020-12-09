@@ -300,31 +300,48 @@ void sys_add_breakpoint(tf_t *tf)
     }
 }
 
+char read_addr_buff[100];
 void sys_read_address(tf_t *tf)
 {
-    unsigned int pid = syscall_get_arg2(tf);
+    memzero(read_addr_buff, 100);
+    uint32_t pid = syscall_get_arg2(tf);
     uintptr_t dst = syscall_get_arg3(tf);
     uintptr_t vaddr = syscall_get_arg4(tf);
     unsigned int len = syscall_get_arg5(tf);
-    KERN_DEBUG("reading %d bytes from %d\n", len, vaddr);
-    if (vaddr < VM_USERLO || vaddr + 1 > VM_USERHI)
+    
+    if (vaddr < VM_USERLO || vaddr + 1 > VM_USERHI || dst < VM_USERLO || dst + 1 > VM_USERHI)
     {
         syscall_set_errno(tf, E_INVAL_ADDR);
         return;
     }
-    KERN_DEBUG("address is good\n");
-    unsigned int data[len];
-    // size_t pt_copyin(uint32_t pmap_id, uintptr_t uva, void *kva, size_t len)
-    if (pt_copyin(pid, vaddr, (void *)data, len) == 0) {
+    // define kernel buffer to store memory in
+    // unsigned int data[len];
+    // copy from user's vaddr into kernel
+    size_t num_read = pt_copyin(pid, vaddr, (void *)read_addr_buff, len);
+    // verify it worked
+    if (num_read == 0) {
         syscall_set_errno(tf, E_INVAL_ADDR);
         return;
     }
+    else if (num_read != len)
+    {
+        syscall_set_errno(tf, E_MEM);
+        return;
+    }
+
+    // copy from kernel's buffer to user's destination buffer
     // size_t pt_copyout(void *kva, uint32_t pmap_id, uintptr_t uva, size_t len)
-    if (pt_copyout((void *)data, pid, dst, len) == 0) {
+    size_t num_wrote = pt_copyout((void *)read_addr_buff, get_curid(), dst, len);
+
+    if (num_wrote == 0) {
         syscall_set_errno(tf, E_INVAL_ADDR);
         return;
     }
-    KERN_DEBUG("wrote %s to the user buffer\n", data);
+    else if (num_wrote != len)
+    {
+        syscall_set_errno(tf, E_MEM);
+        return;
+    }
     syscall_set_errno(tf, E_SUCC);
     return;
 }

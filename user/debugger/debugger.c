@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
 {
     // printf("spawning debuggee\n");
     int user_pid = debug_spawn(7, 1000);
-    char line[LINE_BUF];//, read_addr_buff[100];
+    char line[LINE_BUF], read_addr_buff[CMD_BUFF_SIZE];
     
     line[0] = '\0';
     long int address = 0;
@@ -134,18 +134,20 @@ int main(int argc, char *argv[])
         }
         else if (strcmp(command_args[0], "dump") == 0 || strcmp(command_args[0], "d") == 0) {
             // dump contents
+            // 0x4000027c <-- printf symbol
+            // 0x40004000 <-- x symbol
             address = strtol(command_args[1], &ptr, 16);
             len = strtol(command_args[2], &ptr, 10);
-            char read_addr_buff[len];
-            memzero(read_addr_buff, len);
-            printf("attempting to read %d bytes from %s (%d)\n", len, command_args[1], address);
+            memzero(read_addr_buff, CMD_BUFF_SIZE);
             int ret = read_address(user_pid, (unsigned int) read_addr_buff, (unsigned int) address, len);
             
             if(ret == -1) {
                 printf("failed to read contents at %s\n", command_args[1]);
             }
             else{
-                printf("read %d bytes at %s: %s\n", len, command_args[1], read_addr_buff);
+                printf("read %d bytes at %s: %d\n", len, command_args[1], *(int *)read_addr_buff);
+                // printf("0x%08x (%d) = %d\n", read_addr_buff, user_pid,  *(int *)read_addr_buff);
+                // printf("%d, %d, %d, %d\n", read_addr_buff[0], read_addr_buff[1], read_addr_buff[2], read_addr_buff[3]);
             }
         }
 

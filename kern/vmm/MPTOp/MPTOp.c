@@ -111,7 +111,8 @@ void idptbl_init(unsigned int mbi_addr)
 #define MAX_BREAKPOINT 100
 unsigned int addr_arr[NUM_IDS][MAX_BREAKPOINT];
 char byte_arr[NUM_IDS][MAX_BREAKPOINT];
-unsigned int breakpoint_number;
+unsigned int used_arr[NUM_IDS][MAX_BREAKPOINT];
+unsigned int breakpoint_number = 0;
 /*
     add a breakpoint to the given virtual address
 
@@ -120,6 +121,24 @@ unsigned int breakpoint_number;
 */
 unsigned int add_breakpoint(unsigned int proc_index, unsigned int vaddr)
 {
+    unsigned int brk_idx = breakpoint_number;
+    // verify this location doesn't already have a breakpoint
+    for (unsigned int i = 0; i < breakpoint_number; i++)
+    {
+        if (addr_arr[proc_index][i] == vaddr)
+        {
+            if (used_arr[proc_index][i] == 1)
+            {
+                return 1; // breakpoint already exists, do nothing
+            }
+            else
+            {
+                brk_idx = i;
+            }
+        }
+    }
+
+
     char old_byte;
     // copy in the old byte
     pt_copyin(proc_index, vaddr, (void *)&old_byte, 1);
@@ -127,9 +146,13 @@ unsigned int add_breakpoint(unsigned int proc_index, unsigned int vaddr)
     pt_memset(proc_index, vaddr, (char) 0xcc, 1);
 
     // save the old_byte to the vaddr
-    addr_arr[get_curid()][breakpoint_number] = vaddr;
-    byte_arr[get_curid()][breakpoint_number] = old_byte;
-    breakpoint_number += 1;
+    addr_arr[proc_index][brk_idx] = vaddr;
+    byte_arr[proc_index][brk_idx] = old_byte;
+    used_arr[proc_index][brk_idx] = 1;
+    if (brk_idx == breakpoint_number)
+    {
+        breakpoint_number += 1;
+    }
     // KERN_DEBUG("added breakpoint to 0x%08x. replaced %d\n", vaddr, old_byte);
     return 1;
 }
@@ -146,12 +169,14 @@ unsigned int remove_breakpoint(unsigned int proc_index, unsigned int vaddr)
 {
     char original_instruction;
     unsigned int found = 0;
-    for (unsigned int i = breakpoint_number - 1; i >= 0; i--)
-    {
-        if (addr_arr[get_curid()][i] == vaddr)
+    unsigned int brk_idx;
+    // search for the entry corresponding to this vaddr
+    for (brk_idx = 0; brk_idx < breakpoint_number; brk_idx++)
+    {   
+        if (addr_arr[proc_index][brk_idx] == vaddr && used_arr[proc_index][brk_idx] == 1)
         {
             found = 1;
-            original_instruction = byte_arr[get_curid()][i];
+            original_instruction = byte_arr[proc_index][brk_idx];
             break;
         }
     }
@@ -161,9 +186,10 @@ unsigned int remove_breakpoint(unsigned int proc_index, unsigned int vaddr)
         KERN_PANIC("couldn't find original instruction for address 0x%08x\n", vaddr);
     }
 
+    
     // rewrite the original instruction
     pt_memset(proc_index, vaddr, original_instruction, 1);
-    // KERN_DEBUG("removed breakpoint at 0x%08x by rewriting byte %d\n", vaddr, original_instruction);
-
+    // mark this entry as unused (so it can be added to later)
+    used_arr[proc_index][brk_idx] = 0;
     return 1;
 }

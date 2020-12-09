@@ -113,7 +113,6 @@ void thread_yield(void)
 
 /*
     Yield from current process to the given pid
-
 */
 void thread_yield_to(unsigned int to_pid)
 {
