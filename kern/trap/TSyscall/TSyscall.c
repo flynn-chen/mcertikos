@@ -300,6 +300,35 @@ void sys_add_breakpoint(tf_t *tf)
     }
 }
 
+void sys_read_address(tf_t *tf)
+{
+    unsigned int pid = syscall_get_arg2(tf);
+    uintptr_t dst = syscall_get_arg3(tf);
+    uintptr_t vaddr = syscall_get_arg4(tf);
+    unsigned int len = syscall_get_arg5(tf);
+    KERN_DEBUG("reading %d bytes from %d\n", len, vaddr);
+    if (vaddr < VM_USERLO || vaddr + 1 > VM_USERHI)
+    {
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+    KERN_DEBUG("address is good\n");
+    unsigned int data[len];
+    // size_t pt_copyin(uint32_t pmap_id, uintptr_t uva, void *kva, size_t len)
+    if (pt_copyin(pid, vaddr, (void *)data, len) == 0) {
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+    // size_t pt_copyout(void *kva, uint32_t pmap_id, uintptr_t uva, size_t len)
+    if (pt_copyout((void *)data, pid, dst, len) == 0) {
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+    KERN_DEBUG("wrote %s to the user buffer\n", data);
+    syscall_set_errno(tf, E_SUCC);
+    return;
+}
+
 /**
  * Yields to another thread/process.
  * The user level library function sys_yield (defined in user/include/syscall.h)

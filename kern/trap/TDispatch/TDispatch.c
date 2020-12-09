@@ -62,6 +62,9 @@ void syscall_dispatch(tf_t *tf)
     case SYS_add_breakpoint:
         sys_add_breakpoint(tf);
         break;
+    case SYS_read_address:
+        sys_read_address(tf);
+        break;
     case SYS_yield:
         /*
          * Called by a process to abandon its CPU slice.

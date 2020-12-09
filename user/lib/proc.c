@@ -22,6 +22,11 @@ int add_breakpoint(unsigned int pid, unsigned int addr)
     return sys_add_breakpoint(pid, addr);
 }
 
+int read_address(unsigned int pid, unsigned int dst, unsigned int vaddr, unsigned int len)
+{
+    return sys_read_address(pid, dst, vaddr, len);
+}
+
 void yield(void)
 {
     sys_yield();

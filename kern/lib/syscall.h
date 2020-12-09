@@ -38,6 +38,7 @@ enum __syscall_nr
     SYS_debug_spawn,
     SYS_debug_start,
     SYS_add_breakpoint,
+    SYS_read_address,
     SYS_yield, /* yield to another process */
     SYS_open,
     SYS_close,

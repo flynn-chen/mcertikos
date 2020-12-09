@@ -88,6 +88,22 @@ static gcc_inline int sys_add_breakpoint(unsigned int pid, unsigned int addr)
   return errno ? -1 : 0;
 }
 
+static gcc_inline int sys_read_address(unsigned int pid, unsigned int dst, unsigned int vaddr, unsigned int len)
+{
+  int errno, ret;
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(ret)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_read_address),
+                 "b"(pid),
+                 "c"(dst),
+                 "d"(vaddr),
+                 "S"(len)
+               : "cc", "memory");
+
+  return errno ? -1 : 0;
+}
+
 static gcc_inline void sys_yield(void)
 {
   asm volatile("int %0" ::"i"(T_SYSCALL),

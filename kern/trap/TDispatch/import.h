@@ -11,6 +11,7 @@ void sys_spawn(tf_t *tf);
 void sys_debug_spawn(tf_t *tf);
 void sys_debug_start(tf_t *tf);
 void sys_add_breakpoint(tf_t *tf);
+void sys_read_address(tf_t *tf);
 void sys_yield(tf_t *tf);
 
 #endif /* _KERN_ */
