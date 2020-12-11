@@ -105,37 +105,34 @@ from 5 to 10.
 
 Enter: 
         1. hex or integer to set breakpoint addresses 
-        2. 'start' or press enter to start debugee
-$> 0x4000027c
-added breakpoint at 0x4000027c
+        2. 'start' or press enter to start debuggee
+$> 0x4000027e
+added breakpoint at 0x4000027e
 $> start
-[D] kern/trap/TTrapHandler/TTrapHandler.c:118: Handling breakpoint 0x4000027c
+[D] kern/trap/TTrapHandler/TTrapHandler.c:122: Handling breakpoint 0x4000027e in process 13
 $> c
-Hello, [D] kern/trap/TTrapHandler/TTrapHandler.c:118: Handling breakpoint 0x4000027c
+Hello, [D] kern/trap/TTrapHandler/TTrapHandler.c:122: Handling breakpoint 0x4000027e in process 13
 $> c
-Hello, [D] kern/trap/TTrapHandler/TTrapHandler.c:118: Handling breakpoint 0x4000027c
+Hello, [D] kern/trap/TTrapHandler/TTrapHandler.c:122: Handling breakpoint 0x4000027e in process 13
 $> c
-Hello, [D] kern/trap/TTrapHandler/TTrapHandler.c:118: Handling breakpoint 0x4000027c
+Hello, [D] kern/trap/TTrapHandler/TTrapHandler.c:122: Handling breakpoint 0x4000027e in process 13
 $> c
-Hello, [D] kern/trap/TTrapHandler/TTrapHandler.c:118: Handling breakpoint 0x4000027c
+Hello, [D] kern/trap/TTrapHandler/TTrapHandler.c:122: Handling breakpoint 0x4000027e in process 13
 $> c
 world!
-[D] kern/trap/TTrapHandler/TTrapHandler.c:118: Handling breakpoint 0x4000027c
-$> d 0x40004000 4
+[D] kern/trap/TTrapHandler/TTrapHandler.c:122: Handling breakpoint 0x4000027e in process 13
+$> dump 0x40004000 4
 read 4 bytes at 0x40004000: 5
 $> c
 x = 5
-[D] kern/trap/TTrapHandler/TTrapHandler.c:118: Handling breakpoint 0x4000027c
-$> d 0x40004000 4
+[D] kern/trap/TTrapHandler/TTrapHandler.c:122: Handling breakpoint 0x4000027e in process 13
+$> dump 0x40004000 4
 read 4 bytes at 0x40004000: 10
 $> c
 x = 10
 [D] kern/trap/TTrapHandler/TTrapHandler.c:168: process 13 completed
-[D] kern/vmm/MPTOp/MPTOp.c:189: removed breakpoint at addr 0x4000027e
-[D] kern/vmm/MPTOp/MPTOp.c:189: removed breakpoint at addr 0x40000000
+[D] kern/vmm/MPTOp/MPTOp.c:203: removed breakpoint at 0x4000027e
 fkd finished
-QEMU: Terminated
-
 
 4. and anything else you would like us to know
 NA

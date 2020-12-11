@@ -200,6 +200,7 @@ void remove_all_breakpoints(unsigned int pid)
         if(used_arr[pid][i] == 1)
         {
             remove_breakpoint(pid, addr_arr[pid][i]);
+            KERN_DEBUG("removed breakpoint at 0x%08x\n", addr_arr[pid][i]);
         }
     }
 }
