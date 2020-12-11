@@ -103,6 +103,9 @@ Following shows an output of an example run. In the debuggee process, the value 
 is stored at 0x40004000 in the assembly table, and we show that the value changes
 from 5 to 10.
 
+We wrote our debuggee process in /user/debuggee/debuggee.c and our debugger automatically
+runs this program, but the contents of it are not specific and may be any valid C program.
+
 Enter: 
         1. hex or integer to set breakpoint addresses 
         2. 'start' or press enter to start debuggee
