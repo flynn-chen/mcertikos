@@ -17,6 +17,18 @@ Yes, we coded on this assignment together.
 
 3. brief description of what you have implemented
 
+    In this description we use "user process" and "debuggee process" interchangeably.
+
+    In PThread.c, we added a function thread_yield_to(pid) which we use throughout
+    our implementation. It is similar to thread_yield(), except it allows you to directly
+    specify which process to yield control to. This was important in allowing us to have
+    the debugger yield to the debuggee, and vice versa.
+
+    In PTCBIntro.c, we added two fields to the TCB: 'debugger_id' and 'completed'
+        debugger_id is set to the pid of the process that is debugging the current process
+        completed is automatically initialized to 0, but is set to 1 when a debuggee process completes
+    We added the appropriate getters and setters so that these fields could be accessed
+
     0. initialize debugger & debuggee
         Spawn debugger process from idle
         Spawn user process from debugger process
@@ -26,7 +38,7 @@ Yes, we coded on this assignment together.
 
     1. Read a bunch of addresses to stop at in the debuggee process.
         Add breakpoints to the addresses provided to debugger
-            - store the first byte at the original address
+            - store the first byte of the address
             - overwrite first byte with "INT 3" instruction (op code 0xcc) to trigger a breakpoint fault
               
                 We added new data structures in MPTOp to keep track of the break points.
@@ -45,12 +57,12 @@ Yes, we coded on this assignment together.
                     original byte with the "INT 3" instruction. It requires changing the virtual
                     memory of the user process, so we used pt_copyin and pt_copyout to manipulate
                     the instruction in the memory of the user process. We also check whether the
-                    virtual address has already been added. If so, then we do nothing.thread_yield_to
+                    virtual address has already been added. If so, then we do nothing.
                     
                 kern/vmm/MPTOp/MPTOp.c/remove_breakpoint()
                     Replace the "INT 3" instruction in the user process with the original byte so 
                     that the program execution could resume for the current step. It requies changing
-                    the virutal memory of the user process at the previously set position stored in 
+                    the virtual memory of the user process at the previously set position stored in 
                     addr_arr back to the value stored in byte_arr by searching through the addr_arr to 
                     find the matching virtual address that the debuggee trapped at. 
                     
@@ -58,7 +70,7 @@ Yes, we coded on this assignment together.
                     Iteratively remove all stored breakpoints at the end of debugger execution. 
                     
     2. Start the debuggee (for example with a start command).
-        return control back to the debugee process
+        return control back to the debuggee process with thread_yield_to()
 
     3. When a breakpoint is hit, control goes back to the debugger and the user can either type commands to dump 
         the contents of the memory (dump 0x12345678) or resume the execution (continue).
@@ -67,8 +79,8 @@ Yes, we coded on this assignment together.
             breakpoint_handler(tf):
                 - Call tcb_get_debugger_id() for the current pid. If it's 0, that means the process
                   isn't currently being debugged, so just return.
-                  Otherwise, yield to the debugger id.
-                - When you regain control (because the debugger has yielded back), remove the breakpoint,
+                  Otherwise, yield to the debugger.
+                - When the debuggee regains control (because you typed "continue"), remove the breakpoint,
                   decrement the instruction pointer, and set the last_vaddr value to the memory address
                   of the breakpoint you just removed (this is so it can be restored later)
                 
@@ -79,6 +91,13 @@ Yes, we coded on this assignment together.
                 - If last_vaddr != 0, then restore the breakpoint at the given address, and 
                   reset last_vaddr to 0. This makes it so that breakpoint still exists if the
                   user process loops back to the same instruction
+
+        Letting the user dump contents of memory:
+            When the debugger has control, the user can type "dump X n" or "d X n" to read
+            n bytes from address X. A size must be specified. 
+            To implement this, we added a read_address() system call that uses the pmap.c
+            functions to read in memory from the debuggee's virtual memory and store it 
+            in the debugger's virtual memory so it can print it to the console.
 
     4. Back to 3.
 
