@@ -104,7 +104,11 @@ is stored at 0x40004000 in the assembly table, and we show that the value change
 from 5 to 10.
 
 We wrote our debuggee process in /user/debuggee/debuggee.c and our debugger automatically
-runs this program, but the contents of it are not specific and may be any valid C program.
+runs this program, but the contents of it are not specific and may be any valid C program. 
+However, we turned off any optimizations so that we could see the function being pushed 
+onto the stack for our debugger demonstration, or else the function could be inlined and 
+would not have a stack trace during execution. To do this, we changed -O3 to -O0 in 
+/user/Makefile.inc. 
 
 Enter: 
         1. hex or integer to set breakpoint addresses 
