@@ -14,6 +14,7 @@ void rmv_ptbl_entry_by_va(unsigned int proc_index, unsigned int vaddr);
 void idptbl_init(unsigned int mbi_addr);
 unsigned int add_breakpoint(unsigned int proc_index, unsigned int vaddr);
 unsigned int remove_breakpoint(unsigned int proc_index, unsigned int vaddr);
+void remove_all_breakpoints(unsigned int pid);
 
 #endif /* _KERN_ */
 

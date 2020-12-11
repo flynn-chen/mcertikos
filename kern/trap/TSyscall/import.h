@@ -26,6 +26,11 @@ void thread_yield(void);
 void thread_yield_to(unsigned int pid);
 unsigned int add_breakpoint(unsigned int pid, unsigned int vaddr);
 
+unsigned int tcb_get_completed(unsigned int pid);
+void tcb_set_completed(unsigned int pid, unsigned int status);
+
+void remove_all_breakpoints(unsigned int pid);
+
 #endif /* _KERN_ */
 
 #endif /* !_KERN_TRAP_TSYSCALL_H_ */

@@ -66,13 +66,27 @@ static gcc_inline pid_t sys_debug_spawn(unsigned int elf_id, unsigned int quota)
   return errno ? -1 : pid;
 }
 
-static gcc_inline void sys_debug_start(unsigned int pid)
+static gcc_inline int sys_debug_start(unsigned int pid)
+{
+  int errno, ret;
+  asm volatile("int %2"
+               : "=a"(errno), "=b"(ret)
+               : "i"(T_SYSCALL),
+                 "a"(SYS_debug_start),
+                 "b"(pid)
+               : "cc", "memory");
+
+  return errno ? -1 : ret;
+}
+
+static gcc_inline void sys_debug_end(unsigned int pid)
 {
   asm volatile("int %0" ::"i"(T_SYSCALL),
-               "a"(SYS_debug_start),
+               "a"(SYS_debug_end),
                "b"(pid)
                : "cc", "memory");
 }
+
 
 static gcc_inline int sys_add_breakpoint(unsigned int pid, unsigned int addr)
 {

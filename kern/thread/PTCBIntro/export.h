@@ -14,6 +14,8 @@ void tcb_set_next(unsigned int pid, unsigned int next_pid);
 void tcb_init_at_id(unsigned int cpu_idx, unsigned int pid);
 unsigned int tcb_get_debugger_id(unsigned int pid);
 void tcb_set_debugger_id(unsigned int pid, unsigned int debugger_id);
+unsigned int tcb_get_completed(unsigned int pid);
+void tcb_set_completed(unsigned int pid, unsigned int status);
 
 void *tcb_get_chan(unsigned int pid);
 void tcb_set_chan(unsigned int pid, void *state);

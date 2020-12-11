@@ -268,6 +268,15 @@ void sys_debug_start(tf_t *tf)
     // KERN_DEBUG("yielding in sys_debug_start\n");
     unsigned int debuggee_pid = syscall_get_arg2(tf);
     thread_yield_to(debuggee_pid);
+    unsigned int completed = tcb_get_completed(debuggee_pid);
+    syscall_set_errno(tf, E_SUCC);
+    syscall_set_retval1(tf, completed);
+}
+
+void sys_debug_end(tf_t *tf)
+{
+    unsigned int debuggee_pid = syscall_get_arg2(tf);
+    remove_all_breakpoints(debuggee_pid);
     syscall_set_errno(tf, E_SUCC);
 }
 

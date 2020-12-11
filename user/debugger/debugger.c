@@ -68,6 +68,24 @@ int extract_cmd(char* line)
     return command_idx;
 }
 
+long int parse_address(char *line)
+{
+    char *ptr;
+    int len = strlen(line);
+    if(len == 0)
+    {
+        return 0;
+    }
+    if (line[0] == '0' && line[1] == 'x')
+    {
+        return strtol(&line[2], &ptr, 16);
+    }
+    else
+    {
+        return strtol(line, &ptr, 10);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     // printf("spawning debuggee\n");
@@ -78,22 +96,23 @@ int main(int argc, char *argv[])
     long int address = 0;
     int ret;
     char *ptr;
-    unsigned int len, cmd_extract_status;
+    unsigned int len, cmd_extract_status, debuggee_status;
     // printf("spawned debuggee as process %d\n", user_pid);
 
     // prompt for breakpoint locations
-    printf("Enter: \n\t1. hex or integer to set breakpoint addresses \n\t2. 'start' or press enter to start debugee\n");
+    printf("Enter: \n\t1. hex or integer to set breakpoint addresses \n\t2. 'start' or press enter to start debuggee\n");
     while (1)
     {
         readline(line, LINE_BUF);
-        if (strcmp(line, "start") == 0)
+        // start debuggee
+        if (strcmp(line, "start") == 0 || strlen(line) == 0)
         {
-            debug_start(user_pid);
+            debuggee_status = debug_start(user_pid);
             break;
         }
-        if (strlen(line) != 0 && line[0] == '0' && line[1] == 'x')
+        else
         {
-            address = strtol(&line[2], &ptr, 16);
+            address = parse_address(line);
             ret = add_breakpoint(user_pid, address);
             if (ret == 0)
             {
@@ -104,39 +123,27 @@ int main(int argc, char *argv[])
                 printf("failed to add breakpoint at 0x%08xs\n", address);
             }
         }
-        else if (strlen(line) != 0)
-        {
-            address = strtol(line, &ptr, 10);
-            ret = add_breakpoint(user_pid, address);
-            if (ret == 0)
-            {
-                printf("invalidated 0x%08x successfully\n", address);
-            }
-            else
-            {
-                printf("failed to invalidate 0x%08x\n", address);
-            }
-        }
     }
-    while (1)
+    // handle breakpoints
+    while (debuggee_status == 0)
     {
-        // trap handler just called thread_yield_to after finding a PTE_BRK
-        // printf("debugger started back up\n");
+        // trap handler just called thread_yield_to after finding a breakpoint
         readline(line, LINE_BUF);
         cmd_extract_status = extract_cmd(line);
         if (cmd_extract_status == 0) {
             continue;
         }
-
+        // continue debuggee
         if (strcmp(command_args[0], "continue") == 0 || strcmp(command_args[0], "c") == 0)
         {
-            debug_start(user_pid);
+            debuggee_status = debug_start(user_pid);
         }
+        // dump memory contents
         else if (strcmp(command_args[0], "dump") == 0 || strcmp(command_args[0], "d") == 0) {
             // dump contents
-            // 0x4000027c <-- printf symbol
+            // 0x4000027e <-- printf symbol
             // 0x40004000 <-- x symbol
-            address = strtol(command_args[1], &ptr, 16);
+            address = parse_address(command_args[1]);
             len = strtol(command_args[2], &ptr, 10);
             memzero(read_addr_buff, CMD_BUFF_SIZE);
             int ret = read_address(user_pid, (unsigned int) read_addr_buff, (unsigned int) address, len);
@@ -146,8 +153,6 @@ int main(int argc, char *argv[])
             }
             else{
                 printf("read %d bytes at %s: %d\n", len, command_args[1], *(int *)read_addr_buff);
-                // printf("0x%08x (%d) = %d\n", read_addr_buff, user_pid,  *(int *)read_addr_buff);
-                // printf("%d, %d, %d, %d\n", read_addr_buff[0], read_addr_buff[1], read_addr_buff[2], read_addr_buff[3]);
             }
         }
 
@@ -155,10 +160,8 @@ int main(int argc, char *argv[])
         {
             memzero(command_args[command_idx], CMD_BUFF_SIZE);
         }
-        // memzero(read_addr_buff, CMD_BUFF_SIZE);
     }
-    // printf("woken up\n");
-    // debug_end(user_pid);
-
+    debug_end(user_pid);
+    printf("fkd finished\n");
     return 0;
 }

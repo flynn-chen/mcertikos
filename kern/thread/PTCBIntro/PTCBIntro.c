@@ -26,12 +26,23 @@ struct TCB
     unsigned int prev;
     unsigned int next;
     unsigned int debugger_id;
+    unsigned int completed;
     void *channel;
     struct file *openfiles[NOFILE]; // Open files
     struct inode *cwd;              // Current working directory
 } in_cache_line;
 
 struct TCB TCBPool[NUM_IDS];
+
+unsigned int tcb_get_completed(unsigned int pid)
+{
+    return TCBPool[pid].completed;
+}
+
+void tcb_set_completed(unsigned int pid, unsigned int status)
+{
+    TCBPool[pid].completed = status;
+}
 
 unsigned int tcb_get_debugger_id(unsigned int pid)
 {

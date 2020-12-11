@@ -10,6 +10,8 @@ unsigned int syscall_get_arg1(void);
 void set_pdir_base(unsigned int index);
 void proc_start_user(void);
 unsigned int tcb_get_debugger_id(unsigned int pid);
+unsigned int tcb_get_completed(unsigned int pid);
+void tcb_set_completed(unsigned int pid, unsigned int status);
 
 #endif /* _KERN_ */
 

@@ -186,10 +186,20 @@ unsigned int remove_breakpoint(unsigned int proc_index, unsigned int vaddr)
         KERN_PANIC("couldn't find original instruction for address 0x%08x\n", vaddr);
     }
 
-    
     // rewrite the original instruction
     pt_memset(proc_index, vaddr, original_instruction, 1);
     // mark this entry as unused (so it can be added to later)
     used_arr[proc_index][brk_idx] = 0;
     return 1;
+}
+
+void remove_all_breakpoints(unsigned int pid)
+{
+    for (unsigned int i = 0; i < breakpoint_number; i++)
+    {
+        if(used_arr[pid][i] == 1)
+        {
+            remove_breakpoint(pid, addr_arr[pid][i]);
+        }
+    }
 }

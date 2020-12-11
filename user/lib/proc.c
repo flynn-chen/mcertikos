@@ -12,9 +12,14 @@ pid_t debug_spawn(uintptr_t exec, unsigned int quota)
     return sys_debug_spawn(exec, quota);
 }
 
-void debug_start(unsigned int pid)
+int debug_start(unsigned int pid)
 {
     return sys_debug_start(pid);
+}
+
+void debug_end(unsigned int pid)
+{
+    return sys_debug_end(pid);
 }
 
 int add_breakpoint(unsigned int pid, unsigned int addr)

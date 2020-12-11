@@ -108,21 +108,27 @@ void breakpoint_handler(tf_t *tf)
     {
         return;
     }
-
-    unsigned int cur_pid;
-    unsigned int errno;
-
-    cur_pid = get_curid();
-    errno = tf->err;
-    unsigned int intr_addr = tf->eip - 1;
-    KERN_DEBUG("Handling breakpoint 0x%08x\n", intr_addr);
-    // yield to the debugger
+    // get current id
+    unsigned int cur_pid = get_curid();
+    // get current id's debugger id
     unsigned int debugger_pid = tcb_get_debugger_id(cur_pid);
+    // debugger_pid == 0 when current process is NOT being debugged, so exit
+    if(debugger_pid == 0)
+    {
+        return;
+    }
+    // roll back eip by 1 to get location of breakpoint
+    unsigned int intr_addr = tf->eip - 1;
+    KERN_DEBUG("Handling breakpoint 0x%08x in process %d\n", intr_addr, cur_pid);
+
+    // yield to the debugger
     thread_yield_to(debugger_pid);
+
     // before we return to the debuggee, we have to remove the breakpoint
     remove_breakpoint(cur_pid, intr_addr);
     // reset instruction pointer so the breakpoint executes
     tf->eip -= 1;
+    // save the instruction that needs to have a breakpoint restored
     last_vaddr[cur_pid] = intr_addr;
     return;
 }
@@ -131,15 +137,41 @@ void single_step_handler(tf_t *tf)
 {
     unsigned int cur_pid = get_curid();
     unsigned int vaddr = last_vaddr[cur_pid];
+    // if there's no instruction waiting to be restored, do nothing
     if(vaddr == 0){
         return;
     }
     // KERN_DEBUG("got a single step interrupt, adding breakpoint to 0x%08x\n", vaddr);
+
     // restore the breakpoint that got erased when it was handled
     add_breakpoint(cur_pid, vaddr);
+    // erase stored instruction so it's not repeatedly added back
     last_vaddr[cur_pid] = 0;
     return;
 }
+
+void process_exit_handler(tf_t *tf)
+{
+    if (tf->trapno != T_RES)
+    {
+        return;
+    }
+    // get current id
+    unsigned int cur_pid = get_curid();
+    // get current id's debugger id
+    unsigned int debugger_pid = tcb_get_debugger_id(cur_pid);
+    // debugger_pid == 0 when current process is NOT being debugged, so exit
+    if(debugger_pid == 0)
+    {
+        return;
+    }
+    KERN_DEBUG("process %d completed\n", cur_pid);
+    tcb_set_completed(cur_pid, 1);
+    // yield to the debugger
+    thread_yield_to(debugger_pid);
+    return;
+}
+
 /**
  * We currently only handle the page fault exception.
  * All other exceptions should be routed to the default exception handler.
@@ -153,7 +185,7 @@ void exception_handler(tf_t *tf)
     else if (tf->trapno == T_BRKPT)
         breakpoint_handler(tf);
     else if (tf->trapno == T_RES)
-        KERN_PANIC("oh hey something ended\n");
+        process_exit_handler(tf);
     else
         default_exception_handler(tf);
 }

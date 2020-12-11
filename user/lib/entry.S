@@ -19,6 +19,7 @@ args_exist:
 
 	/* When returning, push the return value on the stack. */
 	pushl	%eax
-
+	/* Issue interrupt to signal program finished */
+	int	$15
 spin:
 	jmp	spin

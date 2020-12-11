@@ -17,32 +17,87 @@ Yes, we coded on this assignment together.
 
 3. brief description of what you have implemented
 
+    0. initialize debugger & debuggee
+        Spawn debugger process from idle
+        Spawn user process from debugger process
+            - call sys_debugger_spawn to initialize but not execute the user process
+                > user process has FL_TF set on its E_FLAGS so that it runs in single step mode
+            - tcb_set_debugger(int user_pid, int debugger_pid) register debugger PID in the user process TCB 
 
-0. initialize debugger & debuggee
-    Spawn debugger process from idel
-    Spawn user process from debugger process
-        - sys_debugger_spawn to initialize but not execute the user process
-        - tcb_set_debugger(int user_pid, int debugger_pid) register debugger PID in the user process TCB 
+    1. Read a bunch of addresses to stop at in the debuggee process.
+        Add breakpoints to the addresses provided to debugger
+            - store the first byte at the original address
+            - overwrite first byte with "INT 3" instruction (op code 0xcc) to trigger a breakpoint fault
+              
+                We added new data structures in MPTOp to keep track of the break points.
+                for example:
+                    addr_arr is an array of virtual addresses for the debuggee
+                    byte_arr is the original byte that we replaced with "INT 3"
+                    used_arr keeps track of whether if the breakpoint is currently in use
+                    breakpoint_number needs the location of the next free slot to store breakpoints
+                    
+                ** We chose to implement our function in vmm/MPTOp because it required direct manipulation of **
+                ** kernel and user (virtual) memory. Therefore, we thought the level of abstraction should be **
+                ** relatively low because we needed to access rudimentary functions for those procedures      **
 
-1. Read a bunch of addresses to stop at in the debuggee process.
-    Invalidate memory addresses provided by debugger
-        - store the memory at the original address
-        - exchange the memory at the entry with debugging "INT 3" exception with a single byte.
+                kern/vmm/MPTOp/MPTOp.c/add_breakpoint() 
+                    Registers the break point in the previous data structures and exchanges the 
+                    original byte with the "INT 3" instruction. It requires changing the virtual
+                    memory of the user process, so we used pt_copyin and pt_copyout to manipulate
+                    the instruction in the memory of the user process. We also check whether the
+                    virtual address has already been added. If so, then we do nothing.thread_yield_to
+                    
+                kern/vmm/MPTOp/MPTOp.c/remove_breakpoint()
+                    Replace the "INT 3" instruction in the user process with the original byte so 
+                    that the program execution could resume for the current step. It requies changing
+                    the virutal memory of the user process at the previously set position stored in 
+                    addr_arr back to the value stored in byte_arr by searching through the addr_arr to 
+                    find the matching virtual address that the debuggee trapped at. 
+                    
+                kern/vmm/MPTOp/MPTOp.c/remove_all_breakpoint()
+                    Iteratively remove all stored breakpoints at the end of debugger execution. 
+                    
+    2. Start the debuggee (for example with a start command).
+        return control back to the debugee process
 
-2. Start the debuggee (for example with a start command).
-    return control back to the debugee process
+    3. When a breakpoint is hit, control goes back to the debugger and the user can either type commands to dump 
+        the contents of the memory (dump 0x12345678) or resume the execution (continue).
+        
+        In TTrapHandler.c, if we get a T_BRKPT trap number, route it to the breakpoint_handler
+            breakpoint_handler(tf):
+                - Call tcb_get_debugger_id() for the current pid. If it's 0, that means the process
+                  isn't currently being debugged, so just return.
+                  Otherwise, yield to the debugger id.
+                - When you regain control (because the debugger has yielded back), remove the breakpoint,
+                  decrement the instruction pointer, and set the last_vaddr value to the memory address
+                  of the breakpoint you just removed (this is so it can be restored later)
+                
+        In TTrapHandler.c, if we get a T_DEBUG trap number, route it to the single_step_handler
+            single_step_handler(tf):
+                - Check if last_vaddr is set for the current process. If not, that means there
+                  is no breakpoint to restore, so just return
+                - If last_vaddr != 0, then restore the breakpoint at the given address, and 
+                  reset last_vaddr to 0. This makes it so that breakpoint still exists if the
+                  user process loops back to the same instruction
 
-3. When a breakpoint is hit, control goes back to the debugger and the user can either type commands to dump 
-    the contents of the memory (dump 0x12345678) or resume the execution (continue).
-    In TTrapHandler.c, if we get a page fault/memory error, check for the presence of the DEBUG flag
-        - if DEBUG is present, find the "debugger" id of the current id, and give it control using
-        our thread_yield_to() function in PThread.c
+    4. Back to 3.
 
-4. Back to 3. 
+    5. Clean up the break points in that process
+        In user/lib/entry.S, we added "int $15" on line 23 to raise a reserved interrupt.
+        In order to allow user processes to do that, we had to register the T_RES interrupt
+        with DPL=3 in kern/dev/intr.c
+        This means that every time a process terminates, before it starts spinning it triggers
+        interrupt number 15, a reserved interrupt that was previously unused
 
-5. Clean up the break points in that process
-
-
+        In TTrapHandler.c, if we get a T_RES trap number, route it to the process_exit_handler
+            process_exit_handler(tf):
+                - Call tcb_get_debugger_id() for the current pid. If it's 0, that means the process
+                  isn't currently being debugged, so just return
+                - Otherwise, call tcb_set_completed() to indicate the process completed. Then yield
+                  to the debugger, who will call tcb_get_completed() to detect that the user process
+                  has completed.
+                - The debugger then calls debug_end(), which in turn calls remove_all_breakpoints()
+                  to clean up the user process's memory.
 
 Following shows an output of an example run. In the debuggee process, the value "x"
 is stored at 0x40004000 in the assembly table, and we show that the value changes
@@ -73,8 +128,13 @@ x = 5
 [D] kern/trap/TTrapHandler/TTrapHandler.c:118: Handling breakpoint 0x4000027c
 $> d 0x40004000 4
 read 4 bytes at 0x40004000: 10
-$> 
-
+$> c
+x = 10
+[D] kern/trap/TTrapHandler/TTrapHandler.c:168: process 13 completed
+[D] kern/vmm/MPTOp/MPTOp.c:189: removed breakpoint at addr 0x4000027e
+[D] kern/vmm/MPTOp/MPTOp.c:189: removed breakpoint at addr 0x40000000
+fkd finished
+QEMU: Terminated
 
 
 4. and anything else you would like us to know

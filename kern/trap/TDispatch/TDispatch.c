@@ -59,6 +59,9 @@ void syscall_dispatch(tf_t *tf)
         // KERN_DEBUG("Dispatched to SYS_debug_start\n");
         sys_debug_start(tf);
         break;
+    case SYS_debug_end:
+        sys_debug_end(tf);
+        break;
     case SYS_add_breakpoint:
         sys_add_breakpoint(tf);
         break;

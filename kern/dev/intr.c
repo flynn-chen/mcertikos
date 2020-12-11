@@ -18,8 +18,8 @@ lapicid_t pcpu_cpu_lapicid(int cpu_idx);
 volatile static bool using_apic = FALSE;
 
 /* Entries of interrupt handlers, defined in kern/dev/idt.S by TRAPHANDLER */
-extern char Xdivide, Xdebug, Xnmi, Xbrkpt, Xoflow, Xbound, Xillop, Xdevice,
-            Xdblflt, Xtss, Xsegnp, Xstack, Xgpflt, Xpgflt, Xfperr, Xalign, Xmchk;
+extern char Xdivide, Xdebug, Xnmi, Xbrkpt, Xoflow, Xbound, Xillop, Xdevice, Xdblflt,
+            Xtss, Xsegnp, Xstack, Xgpflt, Xpgflt, Xres, Xfperr, Xalign, Xmchk;
 extern char Xirq_timer, Xirq_kbd, Xirq_slave, Xirq_serial2, Xirq_serial1,
             Xirq_lpt, Xirq_floppy, Xirq_spurious, Xirq_rtc, Xirq9, Xirq10, Xirq11,
             Xirq_mouse, Xirq_coproc, Xirq_ide1, Xirq_ide2;
@@ -56,6 +56,7 @@ static void intr_init_idt(void)
     SETGATE(idt[T_STACK],                   0, CPU_GDT_KCODE, &Xstack,          0);
     SETGATE(idt[T_GPFLT],                   0, CPU_GDT_KCODE, &Xgpflt,          0);
     SETGATE(idt[T_PGFLT],                   0, CPU_GDT_KCODE, &Xpgflt,          0);
+    SETGATE(idt[T_RES],                     0, CPU_GDT_KCODE, &Xres,            3);
     SETGATE(idt[T_FPERR],                   0, CPU_GDT_KCODE, &Xfperr,          0);
     SETGATE(idt[T_ALIGN],                   0, CPU_GDT_KCODE, &Xalign,          0);
     SETGATE(idt[T_MCHK],                    0, CPU_GDT_KCODE, &Xmchk,           0);
